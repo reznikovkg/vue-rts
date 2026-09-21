@@ -8,6 +8,8 @@ export const ROUTES = {
   INDEX: 'INDEX',
 }
 
+// change
+
 const routes = [
   {
     name: ROUTES.EXAMPLE,
