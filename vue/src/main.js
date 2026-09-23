@@ -17,3 +17,5 @@ createApp(App)
   .use(routes)
   .use(store)
   .mount('#project')
+
+// ДЗ 2 — выполнено. Студент: Станислав Ноздрин
