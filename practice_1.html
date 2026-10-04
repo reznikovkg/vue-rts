@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UNF-8">
+        <title>Practice 1</title>
+        <style>
+            .header {
+               color: plum;
+               font-size: 30px;
+               padding: 20px 40px; 
+            }
+            .fix-top-right {
+                position: fixed;
+                right: 0;
+                top: 0;
+
+            }
+        </style>
+    </head>
+    <body>
+        <h1 class="fix-top-right" style="color: orange;">Самого красивого кота в мире покажут в Москве</h1>
+        <p>Нажми на ссылку ниже и перейди на новость</p>
+        <a href="https://lenta.ru/news/2026/01/13/samogo-krasivogo-kota-v-mire-pokazhut-v-moskve/">Ссылка</a>
+        <div id="myDiv" class="header">
+            123
+        </div>
+        <img src="https://icdn.lenta.ru/images/2026/01/13/03/20260113035257859/square_1280_d33a0f36ead821105b0a11efe8d65707.jpg" alt="" width="300" height="300">
+        <ul>
+            <li style="color: gray;">Первый элемент</li>
+            <li style="color: greenyellow;"> Второй элемент</li>
+            <li style="color: coral;"> Третий элемент</li>
+        </ul>
+        <button id="btn">Нажать</button>
+        <input type="text" id="text" name="text"  placeholder="Ввести">
+    </body>
+    <script>
+        let a = 10 
+        let b = 20 
+        let int = null
+
+        const elem = document.getElementById("myDiv")
+        console.log(elem)
+        if (elem) {
+            int = setInterval(() => {
+                elem.innerHTML = a++ ;
+            }, 100)
+        }
+
+        const btn = document.getElementById("btn")
+        btn.addEventListener("click", () => {
+            if (int) {
+                clearInterval(int)
+                int = null
+            } else {
+                int = setInterval(() => {
+                    elem.innerHTML = a++ ;
+                }, 100)
+            }
+         })
+    </script>
+</html> 
