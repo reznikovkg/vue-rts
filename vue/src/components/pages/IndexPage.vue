@@ -1,17 +1,7 @@
 <template>
-  Index
-
-  <div>
-    <RouterLink :to="{ name: $routes.EXAMPLE }">
-     To Example
-    </RouterLink>
-  </div>
+  <GameWorld />
 </template>
 
 <script setup lang="ts">
-
+import GameWorld from '@/components/game/GameWorld.vue'
 </script>
-
-<style scoped>
-
-</style>
