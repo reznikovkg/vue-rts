@@ -1,6 +1,6 @@
 <template>
   Example STORE {{ count }}
-  <RouterLink :to="{ name: $routes.INDEX }" >To Index</RouterLink>
+  <RouterLink :to="{ name: ROUTES.INDEX }" >To Index</RouterLink>
   <input v-model="value" type="number">
   <input v-model="timeout" type="number">
   <button @click="() => inc()">+</button>
@@ -14,6 +14,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useStore } from 'vuex'
+import { ROUTES } from '@/router'
+
 const store = useStore()
 const count = computed(() => store.getters.getCount)
 const list = computed(() => store.getters['list/getList'])
@@ -29,5 +31,4 @@ const setValue = () => store.dispatch('setCount', {
 </script>
 
 <style scoped>
-
 </style>
