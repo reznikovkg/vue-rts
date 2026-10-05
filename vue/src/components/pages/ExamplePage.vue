@@ -28,6 +28,6 @@ const setValue = () => store.dispatch('setCount', {
 })
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 
 </style>
