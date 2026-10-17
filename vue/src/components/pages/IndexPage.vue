@@ -1,17 +1,7 @@
 <template>
-  Index
-
-  <div>
-    <RouterLink :to="{ name: $routes.EXAMPLE }">
-     To Example
-    </RouterLink>
-  </div>
+  <GameField />
 </template>
 
 <script setup lang="ts">
-
+import GameField from '../game/GameField.vue';
 </script>
-
-<style scoped>
-
-</style>
