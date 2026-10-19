@@ -1,17 +1,10 @@
 <template>
-  Index
-
-  <div>
-    <RouterLink :to="{ name: $routes.EXAMPLE }">
-     To Example
-    </RouterLink>
-  </div>
+  <main>
+    <h1>Прототип RTS</h1>
+    <p>Изометрическая карта, камера, выбор и перемещение юнитов, здания.</p>
+    <p><RouterLink :to="{ name: $routes.GAME }">Играть</RouterLink></p>
+  </main>
 </template>
 
-<script setup lang="ts">
-
+<script setup>
 </script>
-
-<style scoped>
-
-</style>
