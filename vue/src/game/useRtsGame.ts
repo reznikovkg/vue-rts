@@ -109,6 +109,7 @@ export const useRtsGame = () => {
     if (hit) hit.isSelected = additive ? !hit.isSelected : true;
   };
 
+  // №7 Добавлена поддержка множественного выделения с зажатым Shift (параметр additive)
   const selectInBox = (sx1: number, sy1: number, sx2: number, sy2: number, additive = false) => {
     if (!additive) for (const e of entities) e.isSelected = false;
     const minX = Math.min(sx1, sx2);
@@ -122,12 +123,12 @@ export const useRtsGame = () => {
       const bodyCY = pos.y - 17 * zoom.value;
 
       if (pos.x >= minX && pos.x <= maxX && bodyCY >= minY && bodyCY <= maxY) {
-        ent.isSelected = true;
+        ent.isSelected = true; // Выделяем юнитов, попавших в рамку
       }
     }
   };
 
-  // ===== Проверка препятствий для A* =====
+  //  Проверка препятствий 
   const isBlocked = (tx: number, ty: number): boolean => {
     for (const ent of entities) {
       if (ent.kind === 'building') {
@@ -139,8 +140,9 @@ export const useRtsGame = () => {
     return false;
   };
 
-  // ===== Приказы (ПКМ) =====
-  const commandMoveTo = (sx: number, sy: number) => {
+  //  Приказы (ПКМ) 
+  // №12: Добавлен параметр useQueue (проверяет зажатие клавиши Shift на мышке)
+  const commandMoveTo = (sx: number, sy: number, useQueue = false) => {
     const target = screenToWorld(sx, sy);
     const selectedUnits = entities.filter((e): e is Unit => e.kind === 'unit' && e.isSelected);
     const selectedBuildings = entities.filter((e): e is Building => e.kind === 'building' && e.isSelected);
@@ -153,17 +155,24 @@ export const useRtsGame = () => {
 
         // Если выделено больше одного юнита, распределяем их цели по спирали
         if (selectedUnits.length > 1) {
-          const angle = idx * 2.39996; // Золотой угол (137.5 градусов) для идеального распределения
-          const radius = 0.6 * Math.sqrt(idx); // Плавно увеличиваем радиус
+          const angle = idx * 2.39996; // Золотой угол
+          const radius = 0.6 * Math.sqrt(idx);
           tx += Math.cos(angle) * radius;
           ty += Math.sin(angle) * radius;
         }
 
-        u.path = findPath(u.x, u.y, tx, ty, isBlocked);
+        if (useQueue) {
+          // Если Shift зажат, добавляем приказ в конец очереди команд
+          u.commandsQueue.push({ type: 'MOVE', x: tx, y: ty });
+        } else {
+          // Если Shift не зажат, полностью сбрасываем старую очередь и выполняем команду сразу
+          u.commandsQueue = [];
+          u.path = findPath(u.x, u.y, tx, ty, isBlocked);
+        }
       });
     }
 
-    // Переставляем домики
+    // Переставляем домики (применяем тот же принцип очереди)
     if (selectedBuildings.length > 0) {
       selectedBuildings.forEach((b, idx) => {
         const a = (idx / selectedBuildings.length) * Math.PI * 2;
@@ -176,7 +185,12 @@ export const useRtsGame = () => {
         );
 
         if (!occupied) {
-          b.path = [{ x: tx, y: ty }];
+          if (useQueue) {
+            b.commandsQueue.push({ type: 'MOVE', x: tx, y: ty });
+          } else {
+            b.commandsQueue = [];
+            b.path = [{ x: tx, y: ty }];
+          }
         }
       });
     }
@@ -226,10 +240,26 @@ export const useRtsGame = () => {
     }
   };
 
-  // ===== Обновление (Юниты и Здания) =====
+  // Обновление (Юниты и Здания)
+  //№12: Добавлена логика цепочки (выполнение следующего действия по завершении текущего)
   const updateEntities = (dt: number) => {
     for (const ent of entities) {
-      if (ent.path.length === 0) continue;
+      // Если текущий путь пуст, проверяем, есть ли отложенные команды в очереди
+      if (ent.path.length === 0) {
+        if (ent.commandsQueue && ent.commandsQueue.length > 0) {
+          const nextCmd = ent.commandsQueue.shift()!; // Извлекаем самую первую команду из очереди
+          
+          if (nextCmd.type === 'MOVE') {
+            if (ent.kind === 'unit') {
+              // Находим путь до следующей точки
+              ent.path = findPath(ent.x, ent.y, nextCmd.x, nextCmd.y, isBlocked);
+            } else {
+              ent.path = [{ x: nextCmd.x, y: nextCmd.y }];
+            }
+          }
+        }
+        continue;
+      }
 
       const target = ent.path[0]!;
       const dx = target.x - ent.x;
@@ -266,92 +296,54 @@ export const useRtsGame = () => {
     rafId = requestAnimationFrame(loop);
   };
 
-  // ===== Ввод и Lifecycle =====
+  // Ввод и Lifecycle 
   const onKeyDown = (e: KeyboardEvent) => {
     const tag = (e.target as HTMLElement | null)?.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    
     keys[e.key.toLowerCase()] = true;
+    
+    if (e.key === 'Shift') {
+      keys['shift'] = true;
+    }
   };
 
   const onKeyUp = (e: KeyboardEvent) => {
+    // Сбрасываем состояние клавиши, когда игрок её отпускает
     keys[e.key.toLowerCase()] = false;
+    
+    if (e.key === 'Shift') {
+      keys['shift'] = false;
+    }
   };
 
   const onBlur = () => {
+    // Очищаем все зажатые клавиши, если пользователь переключился на другое окно
     for (const k in keys) keys[k] = false;
     isPanning = false;
   };
 
-  const init = () => {
-    entities.push(createUnit(-2, 0, '#3b82f6'));
-    entities.push(createUnit(2, 0, '#dc2626'));
-    entities.push(createUnit(0, 2, '#16a34a'));
-    entities.push(createUnit(-2, 2, '#9333ea'));
-    
-    entities.push(createBuilding(0, -2));
-    entities.push(createBuilding(3, -4));
-    entities.push(createBuilding(-3, -1));
-    entities.push(createBuilding(1, -5));
-
-    lastTime = 0;
-    rafId = requestAnimationFrame(loop);
-
-    window.addEventListener('keydown', onKeyDown);
-    window.addEventListener('keyup', onKeyUp);
-    window.addEventListener('blur', onBlur);
-  };
-
-  const destroy = () => {
-    if (rafId !== null) cancelAnimationFrame(rafId);
-    rafId = null;
-    window.removeEventListener('keydown', onKeyDown);
-    window.removeEventListener('keyup', onKeyUp);
-    window.removeEventListener('blur', onBlur);
-  };
-
-  // ===== Публичные действия =====
-  const spawnUnit = (color = '#f97316') => {
-    const center = isoToWorld(cameraX.value, cameraY.value);
-    const a = Math.random() * Math.PI * 2;
-    const r = 2 + Math.random() * 1.5;
-    entities.push(createUnit(center.x + Math.cos(a) * r, center.y + Math.sin(a) * r, color));
-  };
-
-  const cameraWorld = computed(() => {
-    const w = isoToWorld(cameraX.value, cameraY.value);
-    return { x: Math.round(w.x * 10) / 10, y: Math.round(w.y * 10) / 10 };
-  });
-
-  const zoomDisplay = computed(() => Math.round(zoom.value * 100) / 100);
-  const entityCount = computed(() => entities.length);
-
-  const beginPan = (x: number, y: number) => {
-    isPanning = true;
-    panLastX = x;
-    panLastY = y;
-  };
-
-  const movePan = (x: number, y: number) => {
-    if (!isPanning) return;
-    panByScreen(x - panLastX, y - panLastY);
-    panLastX = x;
-    panLastY = y;
-  };
-
-  const endPan = () => {
-    isPanning = false;
-  };
-
   return {
-    cameraX, cameraY, zoom,
-    viewportW, viewportH,
-    entities, markers,
-    cameraWorld, zoomDisplay, entityCount,
-    screenToIso, isoToScreen, worldToScreen, screenToWorld,
-    selectAt, selectInBox,
+    cameraX,
+    cameraY,
+    zoom,
+    viewportW,
+    viewportH,
+    entities,
+    markers,
+    panByScreen,
+    zoomAt,
+    resetCamera,
+    screenToIso,
+    isoToScreen,
+    worldToScreen,
+    screenToWorld,
+    selectAt,
+    selectInBox,
     commandMoveTo,
-    zoomAt, resetCamera, spawnUnit,
-    beginPan, movePan, endPan,
-    init, destroy,
+    loop,
+    onKeyDown,
+    onKeyUp,
+    onBlur,
   };
 };

@@ -8,11 +8,18 @@ export interface BaseEntity {
   color: string;
 }
 
+export interface ICommand {
+  type: 'MOVE' | 'ATTACK' | 'BUILD'; 
+  x: number;
+  y: number;
+}
+
 export interface Unit extends BaseEntity {
   kind: 'unit';
   speed: number;
   radius: number;
   path: { x: number; y: number }[];
+  commandsQueue: ICommand[];
 }
 
 export interface Building extends BaseEntity {
@@ -21,6 +28,7 @@ export interface Building extends BaseEntity {
   height3d: number;
   speed: number;                  
   path: { x: number; y: number }[]; 
+  commandsQueue: ICommand[];
 }
 
 export type Entity = Unit | Building;
@@ -36,6 +44,7 @@ export const createUnit = (x: number, y: number, color = '#3b82f6'): Unit => ({
   hp: 100, maxHp: 100,
   isSelected: false,
   path: [],
+  commandsQueue: [],
 });
 
 export const createBuilding = (x: number, y: number, color = '#475569'): Building => ({
@@ -47,5 +56,6 @@ export const createBuilding = (x: number, y: number, color = '#475569'): Buildin
   hp: 500, maxHp: 500,
   isSelected: false,
   speed: 4,                       
-  path: [],                       
+  path: [], 
+  commandsQueue: [],                      
 });
