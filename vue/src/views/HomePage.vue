@@ -2,26 +2,27 @@
   <div class="rts-container">
     <header class="hud-bar">
       <div class="stats">
-        <span>Камера: <strong>({{ cameraWorld.x }}, {{ cameraWorld.y }})</strong></span>
-        <span>Зум: <strong>{{ zoomDisplay }}x</strong></span>
+        <span>Камера: <strong>({{ Math.round(cameraWorld.x) }}, {{ Math.round(cameraWorld.y) }})</strong></span>
+        <span>Зум: <strong>{{ zoomDisplay }}</strong></span>
         <span>Сущностей: <strong>{{ entityCount }}</strong></span>
       </div>
       
       <div class="actions">
         <span class="spawn-label">+ Создать:</span>
-        <button class="btn-blue" title="Синий юнит" @click="spawnUnit('#3b82f6')"></button>
-        <button class="btn-red" title="Красный юнит" @click="spawnUnit('#dc2626')"></button>
-        <button class="btn-green" title="Зеленый юнит" @click="spawnUnit('#16a34a')"></button>
-        <button class="btn-purple" title="Фиолетовый юнит" @click="spawnUnit('#9333ea')"></button>
-        <button class="btn-orange" title="Оранжевый юнит" @click="spawnUnit('#f97316')"></button>
+        <button class="btn-blue" title="Синий юнит" @click="handleSpawn('#3b82f6')"></button>
+        <button class="btn-red" title="Красный юнит" @click="handleSpawn('#dc2626')"></button>
+        <button class="btn-green" title="Зеленый юнит" @click="handleSpawn('#16a34a')"></button>
+        <button class="btn-purple" title="Фиолетовый юнит" @click="handleSpawn('#9333ea')"></button>
+        <button class="btn-orange" title="Оранжевый юнит" @click="handleSpawn('#f97316')"></button>
         <button class="btn-reset" @click="resetCamera">Центр</button>
       </div>
 
       <div class="hints">
         <span>ЛКМ — Выбрать</span> ·
-        <span>Зажать ЛКМ — Рамка</span> ·
+        <span>Shift + ЛКМ — Добавить</span> ·
         <span>ПКМ — Идти</span> ·
-        <span>WASD — Камера</span>
+        <span>Shift + ПКМ — Очередь</span> ·
+        <span>WASD / Колесико — Камера</span>
       </div>
     </header>
 
@@ -38,7 +39,7 @@
       <div class="grid" :style="gridStyle"></div>
 
       <div class="world" :style="worldStyle">
-        <!-- Пути -->
+        <!-- Пути с учетом активной траектории и очереди команд Shift -->
         <svg class="paths-layer" width="100%" height="100%">
           <g v-for="p in unitPaths" :key="'path-' + p.id">
             <path :d="p.d" fill="none" stroke="#22c55e" stroke-width="2" stroke-dasharray="5,5" opacity="0.6" />
@@ -97,6 +98,11 @@ const {
   init, destroy,
 } = game;
 
+// Спавн юнита по центру видимой области с передачей цвета
+const handleSpawn = (color: string) => {
+  spawnUnit(cameraWorld.value.x, cameraWorld.value.y, color);
+};
+
 // ===== Сетка (SVG-паттерн) =====
 const gridSvg = 
   `<svg xmlns='http://www.w3.org/2000/svg' width='${TILE_W}' height='${TILE_H}'>` +
@@ -144,19 +150,25 @@ const markerViews = computed(() =>
   })
 );
 
-// ===== Линии пути =====
+// ===== Линии пути (текущий путь + отложенная очередь команд) =====
 const unitPaths = computed(() => {
   return entities
-    .filter((e): e is Unit => e.kind === 'unit' && e.isSelected && e.path.length > 0)
+    .filter((e): e is Unit => e.kind === 'unit' && e.isSelected && (e.path.length > 0 || (e.commandsQueue && e.commandsQueue.length > 0)))
     .map((u) => {
-      const points = [{ x: u.x, y: u.y }, ...u.path];
-      const screenPoints = points.map((p) => {
+      const queuePoints = (u.commandsQueue || [])
+        .filter((c) => c.type === 'MOVE')
+        .map((c) => ({ x: c.x, y: c.y }));
+
+      const allPoints = [{ x: u.x, y: u.y }, ...u.path, ...queuePoints];
+
+      const screenPoints = allPoints.map((p) => {
         const iso = worldToIso(p.x, p.y);
         return {
           x: iso.x - cameraX.value + viewportW.value / 2,
           y: iso.y - cameraY.value + viewportH.value / 2,
         };
       });
+
       const d = screenPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
       const target = screenPoints[screenPoints.length - 1]!;
       return { id: u.id, d, target };
@@ -172,7 +184,7 @@ const updateSize = () => {
   viewportH.value = el.clientHeight;
 };
 
-// ===== Mouse =====
+// ===== Мышь =====
 const localCoords = (e: MouseEvent) => {
   if (!viewportRef.value) return { x: 0, y: 0 };
   const rect = viewportRef.value.getBoundingClientRect();
@@ -238,7 +250,8 @@ const onMouseUp = (e: MouseEvent) => {
       else selectAt(x, y, e.shiftKey);
     }
   } else if (e.button === 2) {
-    commandMoveTo(x, y);
+    // Задача №12: передаем e.shiftKey для добавления шага в очередь
+    commandMoveTo(x, y, e.shiftKey);
   }
   pressedButton = -1;
 };
@@ -256,7 +269,7 @@ const onWheel = (e: WheelEvent) => {
 
 const onContextMenu = (e: MouseEvent) => e.preventDefault();
 
-// ===== Lifecycle =====
+// ===== Жизненный цикл =====
 onMounted(() => {
   const el = viewportRef.value;
   if (!el) return;

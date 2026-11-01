@@ -27,8 +27,14 @@ export const useRtsGame = () => {
 
   let rafId: number | null = null;
   let lastTime = 0;
+  let canvasRef: HTMLCanvasElement | null = null;
 
-  // ===== Координаты =====
+  // ===== Вычисляемые свойства для интерфейса (UI) =====
+  const cameraWorld = computed(() => isoToWorld(cameraX.value, cameraY.value));
+  const zoomDisplay = computed(() => `${Math.round(zoom.value * 100)}%`);
+  const entityCount = computed(() => entities.length);
+
+  // ===== Преобразование координат =====
   const screenToIso = (sx: number, sy: number): Vec2 => ({
     x: cameraX.value + (sx - viewportW.value / 2) / zoom.value,
     y: cameraY.value + (sy - viewportH.value / 2) / zoom.value,
@@ -49,10 +55,29 @@ export const useRtsGame = () => {
     return isoToWorld(iso.x, iso.y);
   };
 
-  // ===== Камера =====
+  // ===== Управление камерой =====
   const panByScreen = (dx: number, dy: number) => {
     cameraX.value -= dx / zoom.value;
     cameraY.value -= dy / zoom.value;
+  };
+
+  const beginPan = (sx: number, sy: number) => {
+    isPanning = true;
+    panLastX = sx;
+    panLastY = sy;
+  };
+
+  const movePan = (sx: number, sy: number) => {
+    if (!isPanning) return;
+    const dx = sx - panLastX;
+    const dy = sy - panLastY;
+    panLastX = sx;
+    panLastY = sy;
+    panByScreen(dx, dy);
+  };
+
+  const endPan = () => {
+    isPanning = false;
   };
 
   const zoomAt = (sx: number, sy: number, factor: number) => {
@@ -87,11 +112,10 @@ export const useRtsGame = () => {
       const r = ent.radius * zoom.value;
       return Math.hypot(sx - pos.x, sy - bodyCY) <= r;
     }
-    
+
     const halfW = 34 * zoom.value;
     const top = pos.y - 60 * zoom.value;
     const bottom = pos.y + 16 * zoom.value;
-    
     return Math.abs(sx - pos.x) <= halfW && sy >= top && sy <= bottom;
   };
 
@@ -109,9 +133,11 @@ export const useRtsGame = () => {
     if (hit) hit.isSelected = additive ? !hit.isSelected : true;
   };
 
-  // №7 Добавлена поддержка множественного выделения с зажатым Shift (параметр additive)
+  // Задача №7: Выделение рамкой с поддержкой Shift (additive)
   const selectInBox = (sx1: number, sy1: number, sx2: number, sy2: number, additive = false) => {
-    if (!additive) for (const e of entities) e.isSelected = false;
+    if (!additive) {
+      for (const e of entities) e.isSelected = false;
+    }
     const minX = Math.min(sx1, sx2);
     const maxX = Math.max(sx1, sx2);
     const minY = Math.min(sy1, sy2);
@@ -123,12 +149,12 @@ export const useRtsGame = () => {
       const bodyCY = pos.y - 17 * zoom.value;
 
       if (pos.x >= minX && pos.x <= maxX && bodyCY >= minY && bodyCY <= maxY) {
-        ent.isSelected = true; // Выделяем юнитов, попавших в рамку
+        ent.isSelected = true;
       }
     }
   };
 
-  //  Проверка препятствий 
+  // ===== Проверка препятствий (A*) =====
   const isBlocked = (tx: number, ty: number): boolean => {
     for (const ent of entities) {
       if (ent.kind === 'building') {
@@ -140,39 +166,48 @@ export const useRtsGame = () => {
     return false;
   };
 
-  //  Приказы (ПКМ) 
-  // №12: Добавлен параметр useQueue (проверяет зажатие клавиши Shift на мышке)
+  // ===== Приказы (ПКМ) и очередь (Задача №12) =====
   const commandMoveTo = (sx: number, sy: number, useQueue = false) => {
     const target = screenToWorld(sx, sy);
     const selectedUnits = entities.filter((e): e is Unit => e.kind === 'unit' && e.isSelected);
     const selectedBuildings = entities.filter((e): e is Building => e.kind === 'building' && e.isSelected);
 
-    // Двигаем юнитов
+    // Перемещение юнитов
     if (selectedUnits.length > 0) {
       selectedUnits.forEach((u, idx) => {
         let tx = target.x;
         let ty = target.y;
 
-        // Если выделено больше одного юнита, распределяем их цели по спирали
+        // Распределение по спирали с проверкой на препятствия
         if (selectedUnits.length > 1) {
-          const angle = idx * 2.39996; // Золотой угол
+          const angle = idx * 2.39996;
           const radius = 0.6 * Math.sqrt(idx);
-          tx += Math.cos(angle) * radius;
-          ty += Math.sin(angle) * radius;
+          const candidateX = target.x + Math.cos(angle) * radius;
+          const candidateY = target.y + Math.sin(angle) * radius;
+
+          if (!isBlocked(Math.round(candidateX), Math.round(candidateY))) {
+            tx = candidateX;
+            ty = candidateY;
+          }
         }
 
         if (useQueue) {
-          // Если Shift зажат, добавляем приказ в конец очереди команд
-          u.commandsQueue.push({ type: 'MOVE', x: tx, y: ty });
+          if (!u.commandsQueue) u.commandsQueue = [];
+
+          // Если юнит уже стоит на месте — начинаем идти сразу
+          if (u.path.length === 0) {
+            u.path = findPath(u.x, u.y, tx, ty, isBlocked);
+          } else {
+            u.commandsQueue.push({ type: 'MOVE', x: tx, y: ty });
+          }
         } else {
-          // Если Shift не зажат, полностью сбрасываем старую очередь и выполняем команду сразу
           u.commandsQueue = [];
           u.path = findPath(u.x, u.y, tx, ty, isBlocked);
         }
       });
     }
 
-    // Переставляем домики (применяем тот же принцип очереди)
+    // Перемещение зданий
     if (selectedBuildings.length > 0) {
       selectedBuildings.forEach((b, idx) => {
         const a = (idx / selectedBuildings.length) * Math.PI * 2;
@@ -186,7 +221,12 @@ export const useRtsGame = () => {
 
         if (!occupied) {
           if (useQueue) {
-            b.commandsQueue.push({ type: 'MOVE', x: tx, y: ty });
+            if (!b.commandsQueue) b.commandsQueue = [];
+            if (b.path.length === 0) {
+              b.path = [{ x: tx, y: ty }];
+            } else {
+              b.commandsQueue.push({ type: 'MOVE', x: tx, y: ty });
+            }
           } else {
             b.commandsQueue = [];
             b.path = [{ x: tx, y: ty }];
@@ -198,7 +238,7 @@ export const useRtsGame = () => {
     markers.value.push({ id: ++markerSeq, x: target.x, y: target.y, born: performance.now() });
   };
 
-  // ===== Расталкивание юнитов (Soft Collision) =====
+  // ===== Коллизии юнитов =====
   const resolveCollisions = () => {
     const units = entities.filter((e): e is Unit => e.kind === 'unit');
     const minDist = 0.8;
@@ -219,15 +259,15 @@ export const useRtsGame = () => {
           let weight2 = 0.5;
 
           if (u1Moving && !u2Moving) {
-            weight1 = 0.1; 
-            weight2 = 0.9; 
+            weight1 = 0.1;
+            weight2 = 0.9;
           } else if (!u1Moving && u2Moving) {
-            weight1 = 0.9; 
-            weight2 = 0.1; 
+            weight1 = 0.9;
+            weight2 = 0.1;
           }
 
           const totalWeight = weight1 + weight2;
-          const push = (minDist - dist);
+          const push = minDist - dist;
           const pushX = (dx / dist) * push;
           const pushY = (dy / dist) * push;
 
@@ -240,18 +280,14 @@ export const useRtsGame = () => {
     }
   };
 
-  // Обновление (Юниты и Здания)
-  //№12: Добавлена логика цепочки (выполнение следующего действия по завершении текущего)
+  // ===== Обновление состояния =====
   const updateEntities = (dt: number) => {
     for (const ent of entities) {
-      // Если текущий путь пуст, проверяем, есть ли отложенные команды в очереди
       if (ent.path.length === 0) {
         if (ent.commandsQueue && ent.commandsQueue.length > 0) {
-          const nextCmd = ent.commandsQueue.shift()!; // Извлекаем самую первую команду из очереди
-          
+          const nextCmd = ent.commandsQueue.shift()!;
           if (nextCmd.type === 'MOVE') {
             if (ent.kind === 'unit') {
-              // Находим путь до следующей точки
               ent.path = findPath(ent.x, ent.y, nextCmd.x, nextCmd.y, isBlocked);
             } else {
               ent.path = [{ x: nextCmd.x, y: nextCmd.y }];
@@ -283,6 +319,13 @@ export const useRtsGame = () => {
     markers.value = markers.value.filter((m) => now - m.born < 900);
   };
 
+  // ===== Добавление юнитов =====
+  const spawnUnit = (wx = 0, wy = 0, color = '#3b82f6') => {
+    const unit = createUnit(wx, wy, color);
+    entities.push(unit);
+  };
+
+  // ===== Главный цикл =====
   const loop = (time: number) => {
     if (!lastTime) lastTime = time;
     const dt = Math.min((time - lastTime) / 1000, 0.1);
@@ -296,31 +339,51 @@ export const useRtsGame = () => {
     rafId = requestAnimationFrame(loop);
   };
 
-  // Ввод и Lifecycle 
+  // ===== Обработка ввода =====
   const onKeyDown = (e: KeyboardEvent) => {
     const tag = (e.target as HTMLElement | null)?.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-    
     keys[e.key.toLowerCase()] = true;
-    
-    if (e.key === 'Shift') {
-      keys['shift'] = true;
-    }
   };
 
   const onKeyUp = (e: KeyboardEvent) => {
-    // Сбрасываем состояние клавиши, когда игрок её отпускает
     keys[e.key.toLowerCase()] = false;
-    
-    if (e.key === 'Shift') {
-      keys['shift'] = false;
-    }
   };
 
   const onBlur = () => {
-    // Очищаем все зажатые клавиши, если пользователь переключился на другое окно
     for (const k in keys) keys[k] = false;
     isPanning = false;
+  };
+
+  const updateSize = () => {
+    if (!canvasRef) return;
+    viewportW.value = canvasRef.clientWidth || window.innerWidth;
+    viewportH.value = canvasRef.clientHeight || window.innerHeight;
+  };
+
+  // ===== Инициализация и очистка =====
+  const init = (canvas?: HTMLCanvasElement | null) => {
+    if (canvas) canvasRef = canvas;
+    updateSize();
+
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('blur', onBlur);
+    window.addEventListener('resize', updateSize);
+
+    lastTime = 0;
+    rafId = requestAnimationFrame(loop);
+  };
+
+  const destroy = () => {
+    if (rafId !== null) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+    window.removeEventListener('keydown', onKeyDown);
+    window.removeEventListener('keyup', onKeyUp);
+    window.removeEventListener('blur', onBlur);
+    window.removeEventListener('resize', updateSize);
   };
 
   return {
@@ -331,7 +394,13 @@ export const useRtsGame = () => {
     viewportH,
     entities,
     markers,
+    cameraWorld,
+    zoomDisplay,
+    entityCount,
     panByScreen,
+    beginPan,
+    movePan,
+    endPan,
     zoomAt,
     resetCamera,
     screenToIso,
@@ -341,6 +410,9 @@ export const useRtsGame = () => {
     selectAt,
     selectInBox,
     commandMoveTo,
+    spawnUnit,
+    init,
+    destroy,
     loop,
     onKeyDown,
     onKeyUp,
