@@ -105,12 +105,17 @@ export const useRtsGame = () => {
 
   const selectAt = (sx: number, sy: number, additive = false) => {
     const hit = getEntityAt(sx, sy);
-    if (!additive) for (const e of entities) e.isSelected = false;
+    if (!additive) {
+      for (const e of entities) e.isSelected = false;
+    }
     if (hit) hit.isSelected = additive ? !hit.isSelected : true;
   };
 
+  // Задание №7: Множественное выделение рамкой + Shift
   const selectInBox = (sx1: number, sy1: number, sx2: number, sy2: number, additive = false) => {
-    if (!additive) for (const e of entities) e.isSelected = false;
+    if (!additive) {
+      for (const e of entities) e.isSelected = false;
+    }
     const minX = Math.min(sx1, sx2);
     const maxX = Math.max(sx1, sx2);
     const minY = Math.min(sy1, sy2);
@@ -127,7 +132,7 @@ export const useRtsGame = () => {
     }
   };
 
-  // ===== Проверка препятствий для A* =====
+  // ===== Проверка препятствий (A*) =====
   const isBlocked = (tx: number, ty: number): boolean => {
     for (const ent of entities) {
       if (ent.kind === 'building') {
@@ -137,6 +142,17 @@ export const useRtsGame = () => {
       }
     }
     return false;
+  };
+
+  // Проверка полной свободы точки от юнитов и зданий
+  const isPositionFree = (x: number, y: number, unitRadius = 0.8): boolean => {
+    if (isBlocked(Math.round(x), Math.round(y))) return false;
+    for (const e of entities) {
+      if (e.kind === 'unit') {
+        if (Math.hypot(e.x - x, e.y - y) < unitRadius) return false;
+      }
+    }
+    return true;
   };
 
   // ===== Приказы (ПКМ) + Очередь команд (Задание №12) =====
@@ -151,14 +167,13 @@ export const useRtsGame = () => {
         let tx = target.x;
         let ty = target.y;
 
-        // Если выделено больше одного юнита, распределяем цели по спирали
+        // Распределение целей группы по спирали
         if (selectedUnits.length > 1) {
-          const angle = idx * 2.39996; // Золотой угол
+          const angle = idx * 2.39996;
           const radius = 0.6 * Math.sqrt(idx);
           const candidateX = target.x + Math.cos(angle) * radius;
           const candidateY = target.y + Math.sin(angle) * radius;
 
-          // Проверяем, свободна ли точка от зданий
           if (!isBlocked(Math.round(candidateX), Math.round(candidateY))) {
             tx = candidateX;
             ty = candidateY;
@@ -167,7 +182,6 @@ export const useRtsGame = () => {
 
         if (useQueue) {
           if (!u.commandsQueue) u.commandsQueue = [];
-          // Если юнит стоит на месте — идем сразу, иначе добавляем в конец очереди
           if (u.path.length === 0) {
             u.path = findPath(u.x, u.y, tx, ty, isBlocked);
           } else {
@@ -253,18 +267,26 @@ export const useRtsGame = () => {
     }
   };
 
-  // ===== Обновление (Юниты и Здания) с поддержкой цепочки команд =====
+  // ===== Обновление (Юниты и Здания) с поддержкой MOVE, ATTACK, BUILD =====
   const updateEntities = (dt: number) => {
     for (const ent of entities) {
-      // Если текущий путь завершен, берем следующую команду из очереди
       if (ent.path.length === 0) {
         if (ent.commandsQueue && ent.commandsQueue.length > 0) {
           const nextCmd = ent.commandsQueue.shift()!;
-          if (nextCmd.type === 'MOVE') {
-            if (ent.kind === 'unit') {
-              ent.path = findPath(ent.x, ent.y, nextCmd.x, nextCmd.y, isBlocked);
-            } else {
-              ent.path = [{ x: nextCmd.x, y: nextCmd.y }];
+
+          // Для MOVE, ATTACK и BUILD юнит сначала строит маршрут и идет к цели
+          if (ent.kind === 'unit') {
+            ent.path = findPath(ent.x, ent.y, nextCmd.x, nextCmd.y, isBlocked);
+          } else {
+            ent.path = [{ x: nextCmd.x, y: nextCmd.y }];
+          }
+
+          // Если путь построить не удалось или точка уже достигнута
+          if (ent.path.length === 0) {
+            if (nextCmd.type === 'ATTACK') {
+              // Хук для логики боя команды
+            } else if (nextCmd.type === 'BUILD') {
+              // Хук для логики стройки команды
             }
           }
         }
@@ -322,7 +344,7 @@ export const useRtsGame = () => {
     isPanning = false;
   };
 
-  // Первоначальный init() с добавлением 4 юнитов и 4 домов
+  // Начальное заполнение карты (4 юнита и 4 здания)
   const init = () => {
     if (entities.length === 0) {
       entities.push(createUnit(-2, 0, '#3b82f6'));
@@ -352,12 +374,32 @@ export const useRtsGame = () => {
     window.removeEventListener('blur', onBlur);
   };
 
-  // Первоначальный spawnUnit() со смещением по кругу от центра камеры
+  // Спавн с гарантированным поиском свободной клетки
   const spawnUnit = (color = '#f97316') => {
     const center = isoToWorld(cameraX.value, cameraY.value);
-    const a = Math.random() * Math.PI * 2;
-    const r = 2 + Math.random() * 1.5;
-    entities.push(createUnit(center.x + Math.cos(a) * r, center.y + Math.sin(a) * r, color));
+    let targetX = center.x;
+    let targetY = center.y;
+    let found = false;
+
+    // Ищем свободное место по расширяющимся кругам
+    for (let r = 1.2; r <= 6.0; r += 0.8) {
+      const steps = Math.floor(r * 6);
+      for (let s = 0; s < steps; s++) {
+        const angle = (s / steps) * Math.PI * 2;
+        const testX = center.x + Math.cos(angle) * r;
+        const testY = center.y + Math.sin(angle) * r;
+
+        if (isPositionFree(testX, testY)) {
+          targetX = testX;
+          targetY = testY;
+          found = true;
+          break;
+        }
+      }
+      if (found) break;
+    }
+
+    entities.push(createUnit(targetX, targetY, color));
   };
 
   const cameraWorld = computed(() => {

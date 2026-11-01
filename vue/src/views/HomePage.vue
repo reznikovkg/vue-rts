@@ -9,11 +9,11 @@
       
       <div class="actions">
         <span class="spawn-label">+ Создать:</span>
-        <button class="btn-blue" title="Синий юнит" @click="handleSpawn('#3b82f6')"></button>
-        <button class="btn-red" title="Красный юнит" @click="handleSpawn('#dc2626')"></button>
-        <button class="btn-green" title="Зеленый юнит" @click="handleSpawn('#16a34a')"></button>
-        <button class="btn-purple" title="Фиолетовый юнит" @click="handleSpawn('#9333ea')"></button>
-        <button class="btn-orange" title="Оранжевый юнит" @click="handleSpawn('#f97316')"></button>
+        <button class="btn-blue" title="Синий юнит" @click="spawnUnit('#3b82f6')"></button>
+        <button class="btn-red" title="Красный юнит" @click="spawnUnit('#dc2626')"></button>
+        <button class="btn-green" title="Зеленый юнит" @click="spawnUnit('#16a34a')"></button>
+        <button class="btn-purple" title="Фиолетовый юнит" @click="spawnUnit('#9333ea')"></button>
+        <button class="btn-orange" title="Оранжевый юнит" @click="spawnUnit('#f97316')"></button>
         <button class="btn-reset" @click="resetCamera">Центр</button>
       </div>
 
@@ -39,7 +39,6 @@
       <div class="grid" :style="gridStyle"></div>
 
       <div class="world" :style="worldStyle">
-        <!-- Пути с учетом активной траектории и очереди команд Shift -->
         <svg class="paths-layer" width="100%" height="100%">
           <g v-for="p in unitPaths" :key="'path-' + p.id">
             <path :d="p.d" fill="none" stroke="#22c55e" stroke-width="2" stroke-dasharray="5,5" opacity="0.6" />
@@ -53,7 +52,6 @@
 
         <div v-for="m in markerViews" :key="'m' + m.id" class="marker" :style="{ left: m.left + 'px', top: m.top + 'px' }"></div>
 
-        <!-- Сущности -->
         <div v-for="v in entityViews" :key="v.id" class="entity" :style="{ left: v.left + 'px', top: v.top + 'px' }">
           <UnitSprite 
             v-if="v.ent.kind === 'unit'" 
@@ -98,12 +96,7 @@ const {
   init, destroy,
 } = game;
 
-// Спавн юнита с сохранением оригинального поведения смещения по кругу
-const handleSpawn = (color: string) => {
-  spawnUnit(color);
-};
-
-// ===== Сетка (SVG-паттерн) =====
+// ===== Сетка =====
 const gridSvg = 
   `<svg xmlns='http://www.w3.org/2000/svg' width='${TILE_W}' height='${TILE_H}'>` +
   `<path d='M0,0 L${TILE_W},${TILE_H} M0,${TILE_H} L${TILE_W},0' stroke='#334d66' stroke-width='1' fill='none'/>` +
@@ -150,15 +143,12 @@ const markerViews = computed(() =>
   })
 );
 
-// ===== Линии пути (текущий путь + отложенная очередь команд) =====
+// Линии путей: учитывают и текущий маршрут, и отложенную очередь Shift
 const unitPaths = computed(() => {
   return entities
     .filter((e): e is Unit => e.kind === 'unit' && e.isSelected && (e.path.length > 0 || (e.commandsQueue && e.commandsQueue.length > 0)))
     .map((u) => {
-      const queuePoints = (u.commandsQueue || [])
-        .filter((c) => c.type === 'MOVE')
-        .map((c) => ({ x: c.x, y: c.y }));
-
+      const queuePoints = (u.commandsQueue || []).map((c) => ({ x: c.x, y: c.y }));
       const allPoints = [{ x: u.x, y: u.y }, ...u.path, ...queuePoints];
 
       const screenPoints = allPoints.map((p) => {
@@ -250,7 +240,7 @@ const onMouseUp = (e: MouseEvent) => {
       else selectAt(x, y, e.shiftKey);
     }
   } else if (e.button === 2) {
-    // Задача №12: передаем статус Shift для очереди приказов
+    // Передаем статус Shift для добавления в очередь
     commandMoveTo(x, y, e.shiftKey);
   }
   pressedButton = -1;
@@ -269,7 +259,7 @@ const onWheel = (e: WheelEvent) => {
 
 const onContextMenu = (e: MouseEvent) => e.preventDefault();
 
-// ===== Жизненный цикл =====
+// ===== Lifecycle =====
 onMounted(() => {
   const el = viewportRef.value;
   if (!el) return;

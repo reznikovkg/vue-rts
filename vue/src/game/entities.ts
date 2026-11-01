@@ -63,7 +63,7 @@ export const createBuilding = (x: number, y: number, color = '#475569'): Buildin
   hp: 500,
   maxHp: 500,
   isSelected: false,
-  speed: 4,
+  speed: 0,
   path: [],
   commandsQueue: [],
 });
