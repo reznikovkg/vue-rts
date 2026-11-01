@@ -111,7 +111,6 @@ export const useRtsGame = () => {
     if (hit) hit.isSelected = additive ? !hit.isSelected : true;
   };
 
-  // Задание №7: Множественное выделение рамкой + Shift
   const selectInBox = (sx1: number, sy1: number, sx2: number, sy2: number, additive = false) => {
     if (!additive) {
       for (const e of entities) e.isSelected = false;
@@ -144,30 +143,29 @@ export const useRtsGame = () => {
     return false;
   };
 
-  // Проверка полной свободы точки от юнитов и зданий
-  const isPositionFree = (x: number, y: number, unitRadius = 0.8): boolean => {
+  // Проверка свободы клетки от любых объектов
+  const isPositionFree = (x: number, y: number, minDist = 0.8): boolean => {
     if (isBlocked(Math.round(x), Math.round(y))) return false;
     for (const e of entities) {
-      if (e.kind === 'unit') {
-        if (Math.hypot(e.x - x, e.y - y) < unitRadius) return false;
+      if (Math.hypot(e.x - x, e.y - y) < minDist) {
+        return false;
       }
     }
     return true;
   };
 
-  // ===== Приказы (ПКМ) + Очередь команд (Задание №12) =====
+  // ===== Приказы (ПКМ) + Очередь команд =====
   const commandMoveTo = (sx: number, sy: number, useQueue = false) => {
     const target = screenToWorld(sx, sy);
     const selectedUnits = entities.filter((e): e is Unit => e.kind === 'unit' && e.isSelected);
     const selectedBuildings = entities.filter((e): e is Building => e.kind === 'building' && e.isSelected);
 
-    // Двигаем юнитов
+    // Юниты
     if (selectedUnits.length > 0) {
       selectedUnits.forEach((u, idx) => {
         let tx = target.x;
         let ty = target.y;
 
-        // Распределение целей группы по спирали
         if (selectedUnits.length > 1) {
           const angle = idx * 2.39996;
           const radius = 0.6 * Math.sqrt(idx);
@@ -194,7 +192,7 @@ export const useRtsGame = () => {
       });
     }
 
-    // Переставляем домики
+    // Здания (перемещение)
     if (selectedBuildings.length > 0) {
       selectedBuildings.forEach((b, idx) => {
         const a = (idx / selectedBuildings.length) * Math.PI * 2;
@@ -225,7 +223,7 @@ export const useRtsGame = () => {
     markers.value.push({ id: ++markerSeq, x: target.x, y: target.y, born: performance.now() });
   };
 
-  // ===== Расталкивание юнитов (Soft Collision) =====
+  // ===== Коллизии юнитов =====
   const resolveCollisions = () => {
     const units = entities.filter((e): e is Unit => e.kind === 'unit');
     const minDist = 0.8;
@@ -267,32 +265,60 @@ export const useRtsGame = () => {
     }
   };
 
-  // ===== Обновление (Юниты и Здания) с поддержкой MOVE, ATTACK, BUILD =====
+  // ===== Обновление (Юниты и Здания) с обработкой MOVE, ATTACK, BUILD =====
   const updateEntities = (dt: number) => {
-    for (const ent of entities) {
+    for (let i = entities.length - 1; i >= 0; i--) {
+      const ent = entities[i]!;
+
+      // Если текущий путь пройден, берем следующую команду
       if (ent.path.length === 0) {
         if (ent.commandsQueue && ent.commandsQueue.length > 0) {
           const nextCmd = ent.commandsQueue.shift()!;
 
-          // Для MOVE, ATTACK и BUILD юнит сначала строит маршрут и идет к цели
-          if (ent.kind === 'unit') {
-            ent.path = findPath(ent.x, ent.y, nextCmd.x, nextCmd.y, isBlocked);
-          } else {
-            ent.path = [{ x: nextCmd.x, y: nextCmd.y }];
-          }
+          if (nextCmd.type === 'MOVE') {
+            if (ent.kind === 'unit') {
+              ent.path = findPath(ent.x, ent.y, nextCmd.x, nextCmd.y, isBlocked);
+            } else {
+              ent.path = [{ x: nextCmd.x, y: nextCmd.y }];
+            }
+          } else if (nextCmd.type === 'ATTACK') {
+            // Если юнит уже в радиусе атаки — наносим урон
+            const dist = Math.hypot(nextCmd.x - ent.x, nextCmd.y - ent.y);
+            const range = ent.kind === 'unit' ? ent.attackRange : 1.5;
 
-          // Если путь построить не удалось или точка уже достигнута
-          if (ent.path.length === 0) {
-            if (nextCmd.type === 'ATTACK') {
-              // Хук для логики боя команды
-            } else if (nextCmd.type === 'BUILD') {
-              // Хук для логики стройки команды
+            if (dist <= range) {
+              const targetEnt = entities.find((e) => Math.hypot(e.x - nextCmd.x, e.y - nextCmd.y) < 0.5);
+              if (targetEnt) {
+                const damage = ent.kind === 'unit' ? ent.attackDamage : 20;
+                targetEnt.hp -= damage;
+                if (targetEnt.hp <= 0) {
+                  const targetIdx = entities.indexOf(targetEnt);
+                  if (targetIdx !== -1) entities.splice(targetIdx, 1);
+                }
+              }
+            } else {
+              // Иначе сначала идем к цели
+              ent.path = findPath(ent.x, ent.y, nextCmd.x, nextCmd.y, isBlocked);
+            }
+          } else if (nextCmd.type === 'BUILD') {
+            // Если пришли к месту стройки — создаем здание
+            const dist = Math.hypot(nextCmd.x - ent.x, nextCmd.y - ent.y);
+            if (dist <= 1.5) {
+              const roundX = Math.round(nextCmd.x);
+              const roundY = Math.round(nextCmd.y);
+              if (!isBlocked(roundX, roundY)) {
+                entities.push(createBuilding(roundX, roundY, ent.color));
+              }
+            } else {
+              // Идем к месту стройки
+              ent.path = findPath(ent.x, ent.y, nextCmd.x, nextCmd.y, isBlocked);
             }
           }
         }
         continue;
       }
 
+      // Перемещение по текущему пути
       const target = ent.path[0]!;
       const dx = target.x - ent.x;
       const dy = target.y - ent.y;
@@ -344,7 +370,6 @@ export const useRtsGame = () => {
     isPanning = false;
   };
 
-  // Начальное заполнение карты (4 юнита и 4 здания)
   const init = () => {
     if (entities.length === 0) {
       entities.push(createUnit(-2, 0, '#3b82f6'));
@@ -374,15 +399,14 @@ export const useRtsGame = () => {
     window.removeEventListener('blur', onBlur);
   };
 
-  // Спавн с гарантированным поиском свободной клетки
-  const spawnUnit = (color = '#f97316') => {
+  // Строгая проверка found перед созданием
+  const spawnUnit = (color = '#f97316'): boolean => {
     const center = isoToWorld(cameraX.value, cameraY.value);
-    let targetX = center.x;
-    let targetY = center.y;
+    let targetX = 0;
+    let targetY = 0;
     let found = false;
 
-    // Ищем свободное место по расширяющимся кругам
-    for (let r = 1.2; r <= 6.0; r += 0.8) {
+    for (let r = 1.0; r <= 8.0; r += 0.8) {
       const steps = Math.floor(r * 6);
       for (let s = 0; s < steps; s++) {
         const angle = (s / steps) * Math.PI * 2;
@@ -399,7 +423,13 @@ export const useRtsGame = () => {
       if (found) break;
     }
 
+    // Если свободного места вокруг нет — не создаем юнита в центре
+    if (!found) {
+      return false;
+    }
+
     entities.push(createUnit(targetX, targetY, color));
+    return true;
   };
 
   const cameraWorld = computed(() => {

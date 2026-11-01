@@ -39,6 +39,7 @@
       <div class="grid" :style="gridStyle"></div>
 
       <div class="world" :style="worldStyle">
+        <!-- Пути с отрисовкой как текущего маршрута, так и очереди из Shift -->
         <svg class="paths-layer" width="100%" height="100%">
           <g v-for="p in unitPaths" :key="'path-' + p.id">
             <path :d="p.d" fill="none" stroke="#22c55e" stroke-width="2" stroke-dasharray="5,5" opacity="0.6" />
@@ -52,6 +53,7 @@
 
         <div v-for="m in markerViews" :key="'m' + m.id" class="marker" :style="{ left: m.left + 'px', top: m.top + 'px' }"></div>
 
+        <!-- Сущности -->
         <div v-for="v in entityViews" :key="v.id" class="entity" :style="{ left: v.left + 'px', top: v.top + 'px' }">
           <UnitSprite 
             v-if="v.ent.kind === 'unit'" 
@@ -143,7 +145,7 @@ const markerViews = computed(() =>
   })
 );
 
-// Линии путей: учитывают и текущий маршрут, и отложенную очередь Shift
+// Отрисовка линий: объединяет активный путь u.path и отложенные точки из commandsQueue
 const unitPaths = computed(() => {
   return entities
     .filter((e): e is Unit => e.kind === 'unit' && e.isSelected && (e.path.length > 0 || (e.commandsQueue && e.commandsQueue.length > 0)))
@@ -240,7 +242,7 @@ const onMouseUp = (e: MouseEvent) => {
       else selectAt(x, y, e.shiftKey);
     }
   } else if (e.button === 2) {
-    // Передаем статус Shift для добавления в очередь
+    // ВАЖНО: передаем e.shiftKey третьим аргументом для работы очереди команд
     commandMoveTo(x, y, e.shiftKey);
   }
   pressedButton = -1;
@@ -259,7 +261,7 @@ const onWheel = (e: WheelEvent) => {
 
 const onContextMenu = (e: MouseEvent) => e.preventDefault();
 
-// ===== Lifecycle =====
+// ===== Жизненный цикл =====
 onMounted(() => {
   const el = viewportRef.value;
   if (!el) return;
