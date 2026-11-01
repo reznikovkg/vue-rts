@@ -2,8 +2,8 @@
   <div class="rts-container">
     <header class="hud-bar">
       <div class="stats">
-        <span>Камера: <strong>({{ Math.round(cameraWorld.x) }}, {{ Math.round(cameraWorld.y) }})</strong></span>
-        <span>Зум: <strong>{{ zoomDisplay }}</strong></span>
+        <span>Камера: <strong>({{ cameraWorld.x }}, {{ cameraWorld.y }})</strong></span>
+        <span>Зум: <strong>{{ zoomDisplay }}x</strong></span>
         <span>Сущностей: <strong>{{ entityCount }}</strong></span>
       </div>
       
@@ -98,9 +98,9 @@ const {
   init, destroy,
 } = game;
 
-// Спавн юнита по центру видимой области с передачей цвета
+// Спавн юнита с сохранением оригинального поведения смещения по кругу
 const handleSpawn = (color: string) => {
-  spawnUnit(cameraWorld.value.x, cameraWorld.value.y, color);
+  spawnUnit(color);
 };
 
 // ===== Сетка (SVG-паттерн) =====
@@ -250,7 +250,7 @@ const onMouseUp = (e: MouseEvent) => {
       else selectAt(x, y, e.shiftKey);
     }
   } else if (e.button === 2) {
-    // Задача №12: передаем e.shiftKey для добавления шага в очередь
+    // Задача №12: передаем статус Shift для очереди приказов
     commandMoveTo(x, y, e.shiftKey);
   }
   pressedButton = -1;

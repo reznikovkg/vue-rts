@@ -27,14 +27,8 @@ export const useRtsGame = () => {
 
   let rafId: number | null = null;
   let lastTime = 0;
-  let canvasRef: HTMLCanvasElement | null = null;
 
-  // ===== Вычисляемые свойства для интерфейса (UI) =====
-  const cameraWorld = computed(() => isoToWorld(cameraX.value, cameraY.value));
-  const zoomDisplay = computed(() => `${Math.round(zoom.value * 100)}%`);
-  const entityCount = computed(() => entities.length);
-
-  // ===== Преобразование координат =====
+  // ===== Координаты =====
   const screenToIso = (sx: number, sy: number): Vec2 => ({
     x: cameraX.value + (sx - viewportW.value / 2) / zoom.value,
     y: cameraY.value + (sy - viewportH.value / 2) / zoom.value,
@@ -55,29 +49,10 @@ export const useRtsGame = () => {
     return isoToWorld(iso.x, iso.y);
   };
 
-  // ===== Управление камерой =====
+  // ===== Камера =====
   const panByScreen = (dx: number, dy: number) => {
     cameraX.value -= dx / zoom.value;
     cameraY.value -= dy / zoom.value;
-  };
-
-  const beginPan = (sx: number, sy: number) => {
-    isPanning = true;
-    panLastX = sx;
-    panLastY = sy;
-  };
-
-  const movePan = (sx: number, sy: number) => {
-    if (!isPanning) return;
-    const dx = sx - panLastX;
-    const dy = sy - panLastY;
-    panLastX = sx;
-    panLastY = sy;
-    panByScreen(dx, dy);
-  };
-
-  const endPan = () => {
-    isPanning = false;
   };
 
   const zoomAt = (sx: number, sy: number, factor: number) => {
@@ -116,6 +91,7 @@ export const useRtsGame = () => {
     const halfW = 34 * zoom.value;
     const top = pos.y - 60 * zoom.value;
     const bottom = pos.y + 16 * zoom.value;
+
     return Math.abs(sx - pos.x) <= halfW && sy >= top && sy <= bottom;
   };
 
@@ -133,11 +109,8 @@ export const useRtsGame = () => {
     if (hit) hit.isSelected = additive ? !hit.isSelected : true;
   };
 
-  // Задача №7: Выделение рамкой с поддержкой Shift (additive)
   const selectInBox = (sx1: number, sy1: number, sx2: number, sy2: number, additive = false) => {
-    if (!additive) {
-      for (const e of entities) e.isSelected = false;
-    }
+    if (!additive) for (const e of entities) e.isSelected = false;
     const minX = Math.min(sx1, sx2);
     const maxX = Math.max(sx1, sx2);
     const minY = Math.min(sy1, sy2);
@@ -154,7 +127,7 @@ export const useRtsGame = () => {
     }
   };
 
-  // ===== Проверка препятствий (A*) =====
+  // ===== Проверка препятствий для A* =====
   const isBlocked = (tx: number, ty: number): boolean => {
     for (const ent of entities) {
       if (ent.kind === 'building') {
@@ -166,25 +139,26 @@ export const useRtsGame = () => {
     return false;
   };
 
-  // ===== Приказы (ПКМ) и очередь (Задача №12) =====
+  // ===== Приказы (ПКМ) + Очередь команд (Задание №12) =====
   const commandMoveTo = (sx: number, sy: number, useQueue = false) => {
     const target = screenToWorld(sx, sy);
     const selectedUnits = entities.filter((e): e is Unit => e.kind === 'unit' && e.isSelected);
     const selectedBuildings = entities.filter((e): e is Building => e.kind === 'building' && e.isSelected);
 
-    // Перемещение юнитов
+    // Двигаем юнитов
     if (selectedUnits.length > 0) {
       selectedUnits.forEach((u, idx) => {
         let tx = target.x;
         let ty = target.y;
 
-        // Распределение по спирали с проверкой на препятствия
+        // Если выделено больше одного юнита, распределяем цели по спирали
         if (selectedUnits.length > 1) {
-          const angle = idx * 2.39996;
+          const angle = idx * 2.39996; // Золотой угол
           const radius = 0.6 * Math.sqrt(idx);
           const candidateX = target.x + Math.cos(angle) * radius;
           const candidateY = target.y + Math.sin(angle) * radius;
 
+          // Проверяем, свободна ли точка от зданий
           if (!isBlocked(Math.round(candidateX), Math.round(candidateY))) {
             tx = candidateX;
             ty = candidateY;
@@ -193,8 +167,7 @@ export const useRtsGame = () => {
 
         if (useQueue) {
           if (!u.commandsQueue) u.commandsQueue = [];
-
-          // Если юнит уже стоит на месте — начинаем идти сразу
+          // Если юнит стоит на месте — идем сразу, иначе добавляем в конец очереди
           if (u.path.length === 0) {
             u.path = findPath(u.x, u.y, tx, ty, isBlocked);
           } else {
@@ -207,7 +180,7 @@ export const useRtsGame = () => {
       });
     }
 
-    // Перемещение зданий
+    // Переставляем домики
     if (selectedBuildings.length > 0) {
       selectedBuildings.forEach((b, idx) => {
         const a = (idx / selectedBuildings.length) * Math.PI * 2;
@@ -238,7 +211,7 @@ export const useRtsGame = () => {
     markers.value.push({ id: ++markerSeq, x: target.x, y: target.y, born: performance.now() });
   };
 
-  // ===== Коллизии юнитов =====
+  // ===== Расталкивание юнитов (Soft Collision) =====
   const resolveCollisions = () => {
     const units = entities.filter((e): e is Unit => e.kind === 'unit');
     const minDist = 0.8;
@@ -280,9 +253,10 @@ export const useRtsGame = () => {
     }
   };
 
-  // ===== Обновление состояния =====
+  // ===== Обновление (Юниты и Здания) с поддержкой цепочки команд =====
   const updateEntities = (dt: number) => {
     for (const ent of entities) {
+      // Если текущий путь завершен, берем следующую команду из очереди
       if (ent.path.length === 0) {
         if (ent.commandsQueue && ent.commandsQueue.length > 0) {
           const nextCmd = ent.commandsQueue.shift()!;
@@ -319,13 +293,6 @@ export const useRtsGame = () => {
     markers.value = markers.value.filter((m) => now - m.born < 900);
   };
 
-  // ===== Добавление юнитов =====
-  const spawnUnit = (wx = 0, wy = 0, color = '#3b82f6') => {
-    const unit = createUnit(wx, wy, color);
-    entities.push(unit);
-  };
-
-  // ===== Главный цикл =====
   const loop = (time: number) => {
     if (!lastTime) lastTime = time;
     const dt = Math.min((time - lastTime) / 1000, 0.1);
@@ -339,7 +306,7 @@ export const useRtsGame = () => {
     rafId = requestAnimationFrame(loop);
   };
 
-  // ===== Обработка ввода =====
+  // ===== Ввод и Lifecycle =====
   const onKeyDown = (e: KeyboardEvent) => {
     const tag = (e.target as HTMLElement | null)?.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
@@ -355,67 +322,79 @@ export const useRtsGame = () => {
     isPanning = false;
   };
 
-  const updateSize = () => {
-    if (!canvasRef) return;
-    viewportW.value = canvasRef.clientWidth || window.innerWidth;
-    viewportH.value = canvasRef.clientHeight || window.innerHeight;
-  };
+  // Первоначальный init() с добавлением 4 юнитов и 4 домов
+  const init = () => {
+    if (entities.length === 0) {
+      entities.push(createUnit(-2, 0, '#3b82f6'));
+      entities.push(createUnit(2, 0, '#dc2626'));
+      entities.push(createUnit(0, 2, '#16a34a'));
+      entities.push(createUnit(-2, 2, '#9333ea'));
 
-  // ===== Инициализация и очистка =====
-  const init = (canvas?: HTMLCanvasElement | null) => {
-    if (canvas) canvasRef = canvas;
-    updateSize();
+      entities.push(createBuilding(0, -2));
+      entities.push(createBuilding(3, -4));
+      entities.push(createBuilding(-3, -1));
+      entities.push(createBuilding(1, -5));
+    }
+
+    lastTime = 0;
+    rafId = requestAnimationFrame(loop);
 
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
     window.addEventListener('blur', onBlur);
-    window.addEventListener('resize', updateSize);
-
-    lastTime = 0;
-    rafId = requestAnimationFrame(loop);
   };
 
   const destroy = () => {
-    if (rafId !== null) {
-      cancelAnimationFrame(rafId);
-      rafId = null;
-    }
+    if (rafId !== null) cancelAnimationFrame(rafId);
+    rafId = null;
     window.removeEventListener('keydown', onKeyDown);
     window.removeEventListener('keyup', onKeyUp);
     window.removeEventListener('blur', onBlur);
-    window.removeEventListener('resize', updateSize);
+  };
+
+  // Первоначальный spawnUnit() со смещением по кругу от центра камеры
+  const spawnUnit = (color = '#f97316') => {
+    const center = isoToWorld(cameraX.value, cameraY.value);
+    const a = Math.random() * Math.PI * 2;
+    const r = 2 + Math.random() * 1.5;
+    entities.push(createUnit(center.x + Math.cos(a) * r, center.y + Math.sin(a) * r, color));
+  };
+
+  const cameraWorld = computed(() => {
+    const w = isoToWorld(cameraX.value, cameraY.value);
+    return { x: Math.round(w.x * 10) / 10, y: Math.round(w.y * 10) / 10 };
+  });
+
+  const zoomDisplay = computed(() => Math.round(zoom.value * 100) / 100);
+  const entityCount = computed(() => entities.length);
+
+  const beginPan = (x: number, y: number) => {
+    isPanning = true;
+    panLastX = x;
+    panLastY = y;
+  };
+
+  const movePan = (x: number, y: number) => {
+    if (!isPanning) return;
+    panByScreen(x - panLastX, y - panLastY);
+    panLastX = x;
+    panLastY = y;
+  };
+
+  const endPan = () => {
+    isPanning = false;
   };
 
   return {
-    cameraX,
-    cameraY,
-    zoom,
-    viewportW,
-    viewportH,
-    entities,
-    markers,
-    cameraWorld,
-    zoomDisplay,
-    entityCount,
-    panByScreen,
-    beginPan,
-    movePan,
-    endPan,
-    zoomAt,
-    resetCamera,
-    screenToIso,
-    isoToScreen,
-    worldToScreen,
-    screenToWorld,
-    selectAt,
-    selectInBox,
+    cameraX, cameraY, zoom,
+    viewportW, viewportH,
+    entities, markers,
+    cameraWorld, zoomDisplay, entityCount,
+    screenToIso, isoToScreen, worldToScreen, screenToWorld,
+    selectAt, selectInBox,
     commandMoveTo,
-    spawnUnit,
-    init,
-    destroy,
-    loop,
-    onKeyDown,
-    onKeyUp,
-    onBlur,
+    zoomAt, resetCamera, spawnUnit,
+    beginPan, movePan, endPan,
+    init, destroy,
   };
 };
