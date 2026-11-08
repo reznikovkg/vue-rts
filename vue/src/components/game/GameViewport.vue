@@ -95,7 +95,10 @@ const onMouseUp = (event) => {
 };
 
 const onRightClick = (event) => {
-  store.dispatch('events/moveSelected', { cursor: getScreenPoint(event) });
+  store.dispatch('events/moveSelected', { 
+    cursor: getScreenPoint(event),
+    isShift: event.shiftKey
+  });
 };
 
 const onWheel = (event) => {

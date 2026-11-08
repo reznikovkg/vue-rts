@@ -102,11 +102,11 @@ export default {
       commit('game/UPDATE_DRAG', { point, threshold: DRAG_THRESHOLD }, { root: true });
     },
 
-    // Отпускание ЛКМ: рамка выделяет группу, клик — снимает выделение
+
     endDrag: ({ rootState, rootGetters, dispatch }) => {
       if (!rootState.game.drag.start) return;
 
-      // Режим строительства: клик ставит здание вместо выделения
+
       if (rootState.game.buildType) {
         dispatch('placeBuilding', rootState.game.drag.current);
         dispatch('game/endDrag', null, { root: true });
@@ -118,7 +118,6 @@ export default {
         type: EVENT_TYPE.SELECT_UNITS,
         payload: { unitIds: rootGetters['map/getUnitIdsByRect'](r) }
       });
-      // Клик по земле снимает и выделение здания
       dispatch('pushEvent', {
         type: EVENT_TYPE.SELECT_BUILDING,
         payload: { buildingId: null }
@@ -177,8 +176,7 @@ export default {
       commit('game/SET_BUILD_TYPE', null, { root: true });
     },
 
-    // События ввода: ПКМ — команда движения выделенным юнитам (в режиме строительства — отмена)
-    moveSelected: ({ rootState, rootGetters, commit, dispatch }, { cursor }) => {
+    moveSelected: ({ rootState, rootGetters, commit, dispatch }, { cursor, isShift }) => {
       if (rootState.game.buildType) {
         commit('game/SET_BUILD_TYPE', null, { root: true });
         return;
@@ -187,10 +185,18 @@ export default {
       const unitIds = rootState.game.selectedUnitIds;
       if (unitIds.length === 0) return;
 
-      dispatch('pushEvent', {
-        type: EVENT_TYPE.MOVE_UNITS,
-        payload: { unitIds, target: rootGetters['game/getWorldByScreen'](cursor) }
-      });
+      const target = rootGetters['game/getWorldByScreen'](cursor);
+
+      if (isShift) {
+        unitIds.forEach((id) => {
+          commit('map/ADD_TARGET_TO_QUEUE', { id, target }, { root: true });
+        });
+      } else {
+        dispatch('pushEvent', {
+          type: EVENT_TYPE.MOVE_UNITS,
+          payload: { unitIds, target }
+        });
+      }
     }
   }
 };
