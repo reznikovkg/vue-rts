@@ -153,6 +153,36 @@ export default {
     PUSH_ZOOM: (state, zoom) => {
       state.zoomQueue.push(zoom);
     },
+
+    RESET_FOR_SCENARIO: (state) => {
+      state.selectedUnitIds = [];
+      state.selectedBuildingId = null;
+
+      state.buildType = null;
+      state.buildGroup = GROUP_LIST[0].id;
+      state.cursor = null;
+
+      state.drag = {
+        start: null,
+        current: null,
+        dragged: false,
+      };
+
+      Object.keys(state.keys).forEach((key) => {
+        state.keys[key] = false;
+      });
+
+      state.zoomQueue = [];
+      state.frame = { dt: 0, time: 0 };
+
+      state.camera = {
+        x: 0,
+        y: 0,
+        zoom: DEFAULT_ZOOM,
+      };
+
+      state.isPaused = false;
+    },
   },
   actions: {
     setViewport: ({ commit }, size) => {
@@ -179,6 +209,10 @@ export default {
 
     setPaused: ({ commit }, value) => {
       commit("SET_PAUSED", value);
+    },
+
+    resetForScenario: ({ commit }) => {
+      commit("RESET_FOR_SCENARIO");
     },
 
     // Применение накопленных за кадр событий ввода: клавиши камеры

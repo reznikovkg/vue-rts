@@ -573,6 +573,11 @@ export default {
       newUnit.position = position;
       state.units.push(newUnit);
     },
+
+    CLEAR_MAP: (state) => {
+      state.units = [];
+      state.buildings = [];
+    },
   },
 
   actions: {
@@ -588,6 +593,44 @@ export default {
         commit("SET_BUILDING_SCREEN", {
           id: b.id,
           screen: worldToScreen(b.position, viewport, camera),
+        });
+      });
+    },
+
+    loadScenario: ({ commit }, scenario) => {
+      if (!scenario) return;
+
+      commit("CLEAR_MAP");
+
+      // Создаём юнитов с новыми ID.
+      scenario.units.forEach(([x, y, group]) => {
+        commit("ADD_UNIT", {
+          position: {
+            x: x * GRID_STEP,
+            y: y * GRID_STEP,
+          },
+          group,
+        });
+      });
+
+      // Создаём здания с новыми ID.
+      scenario.buildings.forEach(({ type, x, y, group }) => {
+        const definition = buildingType(type);
+        if (!definition) return;
+
+        const position = snapToGrid(
+          {
+            x: x * GRID_STEP,
+            y: y * GRID_STEP,
+          },
+          definition.size,
+        );
+
+        commit("ADD_BUILDING", {
+          type,
+          size: definition.size,
+          group,
+          position,
         });
       });
     },
