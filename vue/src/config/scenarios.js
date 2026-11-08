@@ -16,10 +16,10 @@ export const SCENARIOS = [
       [0, 9, "group3"],
     ],
     buildings: [
-      { type: "barrack", x: -10, y: -7, group: "group1" },
+      { type: "barrack", x: -11, y: -7, group: "group1" },
       { type: "house", x: -6, y: -7, group: "group1" },
 
-      { type: "barrack", x: 10, y: -7, group: "group2" },
+      { type: "barrack", x: 11, y: -7, group: "group2" },
       { type: "house", x: 6, y: -7, group: "group2" },
 
       { type: "barrack", x: 0, y: 11, group: "group3" },
@@ -45,11 +45,11 @@ export const SCENARIOS = [
     buildings: [
       { type: "barrack", x: -11, y: 0, group: "group1" },
       { type: "house", x: -11, y: 4, group: "group1" },
-      { type: "fort", x: -13, y: 0, group: "group1" },
+      { type: "fort", x: -11, y: -4, group: "group1" },
 
       { type: "barrack", x: 11, y: 0, group: "group2" },
       { type: "house", x: 11, y: 4, group: "group2" },
-      { type: "fort", x: 13, y: 0, group: "group2" },
+      { type: "fort", x: 11, y: -4, group: "group2" },
     ],
   },
 ];

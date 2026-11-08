@@ -453,8 +453,4 @@ onUnmounted(() => {
   justify-content: center;
   padding-top: 100px;
 }
-
-.game-viewport__overlay {
-  display: none !important;
-}
 </style>
