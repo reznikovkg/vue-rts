@@ -1,12 +1,18 @@
 import {
-  DEFAULT_ZOOM, MIN_ZOOM, MAX_ZOOM, ZOOM_STEP, CAMERA_SPEED,
-  ISO_ROTATION_DEG, ISO_SCALE_Y, GROUP_LIST
-} from '@/config/game';
-import { useIsoMath } from '@/composables/useIsoMath';
+  DEFAULT_ZOOM,
+  MIN_ZOOM,
+  MAX_ZOOM,
+  ZOOM_STEP,
+  CAMERA_SPEED,
+  ISO_ROTATION_DEG,
+  ISO_SCALE_Y,
+  GROUP_LIST,
+} from "@/config/game";
+import { useIsoMath } from "@/composables/useIsoMath";
 
 const { screenToWorld } = useIsoMath();
 
-const RAD = ISO_ROTATION_DEG * Math.PI / 180;
+const RAD = (ISO_ROTATION_DEG * Math.PI) / 180;
 const ISO_COS = Math.cos(RAD);
 const ISO_SIN = Math.sin(RAD);
 
@@ -15,7 +21,7 @@ const screenDirToWorldDir = (sx, sy) => {
   const unsquashedY = sy / ISO_SCALE_Y;
   return {
     x: sx * ISO_COS + unsquashedY * ISO_SIN,
-    y: unsquashedY * ISO_COS - sx * ISO_SIN
+    y: unsquashedY * ISO_COS - sx * ISO_SIN,
   };
 };
 
@@ -29,8 +35,14 @@ export default {
     selectedBuildingId: null,
     // Зажатые клавиши камеры
     keys: {
-      w: false, a: false, s: false, d: false,
-      ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false
+      w: false,
+      a: false,
+      s: false,
+      d: false,
+      ArrowUp: false,
+      ArrowDown: false,
+      ArrowLeft: false,
+      ArrowRight: false,
     },
     // Текущее перетаскивание ЛКМ
     drag: { start: null, current: null, dragged: false },
@@ -41,7 +53,9 @@ export default {
     buildGroup: GROUP_LIST[0].id,
     cursor: null,
     // Последний пересчитанный кадр: dt — длительность, time — накопленное игровое время
-    frame: { dt: 0, time: 0 }
+    frame: { dt: 0, time: 0 },
+    // Статус паузы
+    isPaused: false,
   }),
   getters: {
     isUnitSelected: (state) => (id) => state.selectedUnitIds.includes(id),
@@ -54,7 +68,7 @@ export default {
         x1: Math.min(start.x, current.x),
         y1: Math.min(start.y, current.y),
         x2: Math.max(start.x, current.x),
-        y2: Math.max(start.y, current.y)
+        y2: Math.max(start.y, current.y),
       };
     },
     // Мировые координаты по экранной точке — только чтение результата
@@ -63,17 +77,30 @@ export default {
     },
     // Мировая точка под курсором — для призрака здания
     getCursorWorld: (state) => {
-      return state.cursor ? screenToWorld(state.cursor.x, state.cursor.y, state.viewport, state.camera) : null;
-    }
+      return state.cursor
+        ? screenToWorld(
+            state.cursor.x,
+            state.cursor.y,
+            state.viewport,
+            state.camera,
+          )
+        : null;
+    },
   },
   mutations: {
-    SET_VIEWPORT: (state, size) => { state.viewport = size; },
-    SET_CAMERA: (state, cam) => { state.camera = cam; },
+    SET_VIEWPORT: (state, size) => {
+      state.viewport = size;
+    },
+    SET_CAMERA: (state, cam) => {
+      state.camera = cam;
+    },
     MOVE_CAMERA: (state, offset) => {
       state.camera.x += offset.x;
       state.camera.y += offset.y;
     },
-    SET_ZOOM: (state, zoom) => { state.camera.zoom = zoom; },
+    SET_ZOOM: (state, zoom) => {
+      state.camera.zoom = zoom;
+    },
     SET_SELECTED: (state, ids) => {
       state.selectedUnitIds = ids;
       if (ids.length) state.selectedBuildingId = null;
@@ -82,15 +109,26 @@ export default {
       state.selectedBuildingId = id;
       if (id) state.selectedUnitIds = [];
     },
-    SET_BUILD_TYPE: (state, type) => { state.buildType = type; },
-    SET_BUILD_GROUP: (state, group) => { state.buildGroup = group; },
-    SET_CURSOR: (state, point) => { state.cursor = point; },
+    SET_BUILD_TYPE: (state, type) => {
+      state.buildType = type;
+    },
+    SET_BUILD_GROUP: (state, group) => {
+      state.buildGroup = group;
+    },
+    SET_CURSOR: (state, point) => {
+      state.cursor = point;
+    },
+    SET_PAUSED: (state, value) => {
+      state.isPaused = value;
+    },
 
     SET_KEY: (state, { key, pressed }) => {
       if (key in state.keys) state.keys[key] = pressed;
     },
     CLEAR_KEYS: (state) => {
-      Object.keys(state.keys).forEach((key) => { state.keys[key] = false; });
+      Object.keys(state.keys).forEach((key) => {
+        state.keys[key] = false;
+      });
     },
 
     START_DRAG: (state, point) => {
@@ -112,33 +150,55 @@ export default {
       state.frame = { dt, time: state.frame.time + dt };
     },
 
-    PUSH_ZOOM: (state, zoom) => { state.zoomQueue.push(zoom); }
+    PUSH_ZOOM: (state, zoom) => {
+      state.zoomQueue.push(zoom);
+    },
   },
   actions: {
-    setViewport: ({ commit }, size) => { commit('SET_VIEWPORT', size); },
-    setCamera: ({ commit }, cam) => { commit('SET_CAMERA', cam); },
-    moveCamera: ({ commit }, offset) => { commit('MOVE_CAMERA', offset); },
-    setZoom: ({ commit }, z) => { commit('SET_ZOOM', z); },
-    selectUnits: ({ commit }, ids) => { commit('SET_SELECTED', ids); },
-    endDrag: ({ commit }) => { commit('END_DRAG'); },
+    setViewport: ({ commit }, size) => {
+      commit("SET_VIEWPORT", size);
+    },
+    setCamera: ({ commit }, cam) => {
+      commit("SET_CAMERA", cam);
+    },
+    moveCamera: ({ commit }, offset) => {
+      commit("MOVE_CAMERA", offset);
+    },
+    setZoom: ({ commit }, z) => {
+      commit("SET_ZOOM", z);
+    },
+    selectUnits: ({ commit }, ids) => {
+      commit("SET_SELECTED", ids);
+    },
+    endDrag: ({ commit }) => {
+      commit("END_DRAG");
+    },
+    togglePause: ({ state, commit }) => {
+      commit("SET_PAUSED", !state.isPaused);
+    },
+
+    setPaused: ({ commit }, value) => {
+      commit("SET_PAUSED", value);
+    },
 
     // Применение накопленных за кадр событий ввода: клавиши камеры
     applyInput: ({ state, commit }, { dt }) => {
       const { keys, camera } = state;
 
-      let sx = 0, sy = 0;
-      if (keys.w || keys.ArrowUp)    sy -= 1;
-      if (keys.s || keys.ArrowDown)  sy += 1;
-      if (keys.a || keys.ArrowLeft)  sx -= 1;
+      let sx = 0,
+        sy = 0;
+      if (keys.w || keys.ArrowUp) sy -= 1;
+      if (keys.s || keys.ArrowDown) sy += 1;
+      if (keys.a || keys.ArrowLeft) sx -= 1;
       if (keys.d || keys.ArrowRight) sx += 1;
 
       if (sx || sy) {
         const world = screenDirToWorldDir(sx, sy);
         const len = Math.hypot(world.x, world.y) || 1;
-        const speed = CAMERA_SPEED * dt / camera.zoom;
-        commit('MOVE_CAMERA', {
+        const speed = (CAMERA_SPEED * dt) / camera.zoom;
+        commit("MOVE_CAMERA", {
           x: (world.x / len) * speed,
-          y: (world.y / len) * speed
+          y: (world.y / len) * speed,
         });
       }
     },
@@ -148,7 +208,10 @@ export default {
       state.zoomQueue.forEach(({ cursor, worldBefore, deltaY }) => {
         const { camera, viewport } = state;
         const factor = deltaY > 0 ? 1 / ZOOM_STEP : ZOOM_STEP;
-        const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, camera.zoom * factor));
+        const newZoom = Math.max(
+          MIN_ZOOM,
+          Math.min(MAX_ZOOM, camera.zoom * factor),
+        );
 
         const offsetX = cursor.x - viewport.width / 2;
         const offsetY = cursor.y - viewport.height / 2;
@@ -157,16 +220,16 @@ export default {
         const wox = unscaledX * ISO_COS + unsquashedY * ISO_SIN;
         const woy = unsquashedY * ISO_COS - unscaledX * ISO_SIN;
 
-        commit('SET_CAMERA', {
+        commit("SET_CAMERA", {
           x: worldBefore.x - wox,
           y: worldBefore.y - woy,
-          zoom: newZoom
+          zoom: newZoom,
         });
       });
     },
 
     clearZoomQueue: ({ state }) => {
       state.zoomQueue = [];
-    }
-  }
+    },
+  },
 };

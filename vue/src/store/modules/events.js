@@ -35,8 +35,19 @@ export default {
     },
 
     // Применение всех событий кадра к элементам карты
-    applyEvents: ({ state, rootGetters, commit, dispatch }) => {
+    applyEvents: ({ state, rootState, rootGetters, commit, dispatch }) => {
       state.queue.forEach((event) => {
+        if (
+          rootState.game.isPaused &&
+          [
+            EVENT_TYPE.MOVE_UNITS,
+            EVENT_TYPE.BUILD_BUILDING,
+            EVENT_TYPE.SPAWN_UNIT,
+          ].includes(event.type)
+        ) {
+          return;
+        }
+
         if (event.type === EVENT_TYPE.SELECT_UNITS) {
           commit("game/SET_SELECTED", event.payload.unitIds, { root: true });
           return;
@@ -163,7 +174,9 @@ export default {
     },
 
     // Собоытия спавна
-    spawnUnit: ({ dispatch }, buildingId) => {
+    spawnUnit: ({ rootState, dispatch }, buildingId) => {
+      if (rootState.game.isPaused) return;
+
       dispatch("pushEvent", {
         type: EVENT_TYPE.SPAWN_UNIT,
         payload: { buildingId },
@@ -185,6 +198,7 @@ export default {
     placeBuilding: ({ rootState, rootGetters, commit, dispatch }, cursor) => {
       const type = rootState.game.buildType;
       if (!type) return;
+      if (rootState.game.isPaused) return;
 
       const world = rootGetters["game/getWorldByScreen"](cursor);
       if (!rootGetters["map/canPlace"](world, type.size)) return;
@@ -205,6 +219,7 @@ export default {
       { rootState, rootGetters, commit, dispatch },
       { cursor, isShift },
     ) => {
+      if (rootState.game.isPaused) return;
       if (rootState.game.buildType) {
         commit("game/SET_BUILD_TYPE", null, { root: true });
         return;

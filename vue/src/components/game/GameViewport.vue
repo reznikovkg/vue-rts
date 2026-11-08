@@ -37,35 +37,68 @@
     <BuildPanel />
     <StatsPanel />
 
+    <button
+      class="game-viewport__pause"
+      :style="{ zIndex: Z_INDEX.CONTROLS_PANEL }"
+      @click="togglePause"
+    >
+      {{ isPaused ? "Продолжить" : "Пауза" }}
+    </button>
+
     <!-- Рамка выделения — рисуется поверх всего в экранных координатах -->
-    <div v-if="selectionRect" class="game-viewport__selection" :style="selectionStyle"></div>
+    <div
+      v-if="selectionRect"
+      class="game-viewport__selection"
+      :style="selectionStyle"
+    ></div>
 
     <div class="game-viewport__controls" :style="controlsStyle">
-        <div class="game-viewport__row"><span class="game-viewport__key">↑ ↓ ← →</span><span class="game-viewport__desc">Камера</span></div>
-        <div class="game-viewport__row"><span class="game-viewport__key">Колесо</span><span class="game-viewport__desc">Зум</span></div>
-        <div class="game-viewport__row"><span class="game-viewport__key">ЛКМ</span><span class="game-viewport__desc">Выбрать юнита</span></div>
-        <div class="game-viewport__row"><span class="game-viewport__key">ЛКМ + drag</span><span class="game-viewport__desc">Выделить группу</span></div>
-        <div class="game-viewport__row"><span class="game-viewport__key">ПКМ</span><span class="game-viewport__desc">Отправить к цели</span></div>
+      <div class="game-viewport__row">
+        <span class="game-viewport__key">↑ ↓ ← →</span
+        ><span class="game-viewport__desc">Камера</span>
+      </div>
+      <div class="game-viewport__row">
+        <span class="game-viewport__key">Колесо</span
+        ><span class="game-viewport__desc">Зум</span>
+      </div>
+      <div class="game-viewport__row">
+        <span class="game-viewport__key">ЛКМ</span
+        ><span class="game-viewport__desc">Выбрать юнита</span>
+      </div>
+      <div class="game-viewport__row">
+        <span class="game-viewport__key">ЛКМ + drag</span
+        ><span class="game-viewport__desc">Выделить группу</span>
+      </div>
+      <div class="game-viewport__row">
+        <span class="game-viewport__key">ПКМ</span
+        ><span class="game-viewport__desc">Отправить к цели</span>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { useStore } from 'vuex';
-import GameWorld from './GameWorld.vue';
-import BuildPanel from './BuildPanel.vue';
-import StatsPanel from './StatsPanel.vue';
-import HealthBar from './HealthBar.vue';
-import { useGameLoop } from '@/composables/useGameLoop';
-import { Z_INDEX, HEALTH_BAR } from '@/config/game';
+import { ref, computed, onMounted, onUnmounted } from "vue";
+import { useStore } from "vuex";
+import GameWorld from "./GameWorld.vue";
+import BuildPanel from "./BuildPanel.vue";
+import StatsPanel from "./StatsPanel.vue";
+import HealthBar from "./HealthBar.vue";
+import { useGameLoop } from "@/composables/useGameLoop";
+import { Z_INDEX, HEALTH_BAR } from "@/config/game";
 
 const store = useStore();
 const viewportRef = ref(null);
 
+const isPaused = computed(() => store.state.game.isPaused);
+
+const togglePause = () => {
+  store.dispatch("game/togglePause");
+};
+
 // Пересчёт кадра целиком выполняется в сторе
 useGameLoop((dt) => {
-  store.dispatch('frame/run', dt);
+  store.dispatch("frame/run", dt);
 });
 
 const getScreenPoint = (event) => {
@@ -74,37 +107,37 @@ const getScreenPoint = (event) => {
 };
 
 // Ввод -> события кадра
-const onKeyDown = (event) => store.dispatch('events/keyDown', event.key);
-const onKeyUp = (event) => store.dispatch('events/keyUp', event.key);
+const onKeyDown = (event) => store.dispatch("events/keyDown", event.key);
+const onKeyUp = (event) => store.dispatch("events/keyUp", event.key);
 
 const onMouseDown = (event) => {
   if (event.button !== 0) return;
-  store.dispatch('events/startDrag', getScreenPoint(event));
+  store.dispatch("events/startDrag", getScreenPoint(event));
 };
 
 const onMouseMove = (event) => {
   const point = getScreenPoint(event);
-  store.dispatch('events/updateCursor', point);
-  store.dispatch('events/updateDrag', point);
+  store.dispatch("events/updateCursor", point);
+  store.dispatch("events/updateDrag", point);
 };
 
 // Отпускание ЛКМ завершает выделение; ПКМ и mouseleave выделение не трогают
 const onMouseUp = (event) => {
   if (event && event.button !== 0) return;
-  store.dispatch('events/endDrag');
+  store.dispatch("events/endDrag");
 };
 
 const onRightClick = (event) => {
-  store.dispatch('events/moveSelected', { 
+  store.dispatch("events/moveSelected", {
     cursor: getScreenPoint(event),
-    isShift: event.shiftKey
+    isShift: event.shiftKey,
   });
 };
 
 const onWheel = (event) => {
-  store.dispatch('events/wheel', {
+  store.dispatch("events/wheel", {
     cursor: getScreenPoint(event),
-    deltaY: event.deltaY
+    deltaY: event.deltaY,
   });
 };
 
@@ -118,7 +151,10 @@ const gameFrame = computed(() => store.state.game.frame);
 const isBarVisible = (object, isFocused) => {
   if (isFocused) return true;
   if (object.damagedAt === null) return false;
-  return (gameFrame.value.time - object.damagedAt) * 1000 < HEALTH_BAR.damageVisibleMs;
+  return (
+    (gameFrame.value.time - object.damagedAt) * 1000 <
+    HEALTH_BAR.damageVisibleMs
+  );
 };
 
 const focusedUnits = computed(() => {
@@ -130,31 +166,34 @@ const focusedBuildings = computed(() => {
   return buildings.value.filter((b) => isBarVisible(b, b.id === id));
 });
 
-const selectionRect = computed(() => store.getters['game/getSelectionRect']);
+const selectionRect = computed(() => store.getters["game/getSelectionRect"]);
 const selectionStyle = computed(() => ({
   left: `${selectionRect.value.x1}px`,
   top: `${selectionRect.value.y1}px`,
   width: `${selectionRect.value.x2 - selectionRect.value.x1}px`,
   height: `${selectionRect.value.y2 - selectionRect.value.y1}px`,
-  zIndex: Z_INDEX.SELECTION_RECT
+  zIndex: Z_INDEX.SELECTION_RECT,
 }));
 const controlsStyle = { zIndex: Z_INDEX.CONTROLS_PANEL };
 
 const updateViewport = () => {
   const rect = viewportRef.value.getBoundingClientRect();
-  store.dispatch('game/setViewport', { width: rect.width, height: rect.height });
+  store.dispatch("game/setViewport", {
+    width: rect.width,
+    height: rect.height,
+  });
 };
 
 onMounted(() => {
-  window.addEventListener('keydown', onKeyDown);
-  window.addEventListener('keyup', onKeyUp);
-  window.addEventListener('resize', updateViewport);
+  window.addEventListener("keydown", onKeyDown);
+  window.addEventListener("keyup", onKeyUp);
+  window.addEventListener("resize", updateViewport);
   updateViewport();
 });
 onUnmounted(() => {
-  window.removeEventListener('keydown', onKeyDown);
-  window.removeEventListener('keyup', onKeyUp);
-  window.removeEventListener('resize', updateViewport);
+  window.removeEventListener("keydown", onKeyDown);
+  window.removeEventListener("keyup", onKeyUp);
+  window.removeEventListener("resize", updateViewport);
 });
 </script>
 
@@ -166,7 +205,8 @@ onUnmounted(() => {
   background: #c0c0c0;
   user-select: none;
   cursor: crosshair;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 .game-viewport__selection {
@@ -205,5 +245,23 @@ onUnmounted(() => {
 
 .game-viewport__desc {
   color: #d0d0d0;
+}
+
+.game-viewport__pause {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  padding: 10px 18px;
+  border: 1px solid #6b9bc8;
+  border-radius: 8px;
+  background: rgba(15, 15, 15, 0.9);
+  color: #e8e8e8;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    background: #315779;
+  }
 }
 </style>
