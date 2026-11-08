@@ -1,4 +1,5 @@
-@import './base.css';
+@use './styles/tokens' as tokens;
+@use './base';
 
 #project {
   max-width: 1280px;

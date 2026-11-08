@@ -1,4 +1,5 @@
 import { createStore } from 'vuex'
+import game from './game'
 import list from './list'
 
 const MUTATIONS = {
@@ -37,6 +38,7 @@ export default createStore({
     },
   },
   modules: {
-    list
+    game,
+    list,
   }
 })
