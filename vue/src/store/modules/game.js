@@ -31,6 +31,8 @@ export default {
     camera: { x: 0, y: 0, zoom: DEFAULT_ZOOM },
     viewport: { width: 0, height: 0 },
     selectedUnitIds: [],
+    // Юнит, на которого переключился просмотр внутри выделения (Tab)
+    focusedUnitId: null,
     // Выбранное здание (клик по постройке)
     selectedBuildingId: null,
     // Зажатые клавиши камеры
@@ -104,11 +106,19 @@ export default {
     },
     SET_SELECTED: (state, ids) => {
       state.selectedUnitIds = ids;
+      // Новое выделение — просмотр снова начинается со сводки отряда
+      state.focusedUnitId = null;
       if (ids.length) state.selectedBuildingId = null;
     },
     SET_SELECTED_BUILDING: (state, id) => {
       state.selectedBuildingId = id;
-      if (id) state.selectedUnitIds = [];
+      if (id) {
+        state.selectedUnitIds = [];
+        state.focusedUnitId = null;
+      }
+    },
+    SET_FOCUSED_UNIT: (state, id) => {
+      state.focusedUnitId = id;
     },
     SET_BUILD_TYPE: (state, type) => {
       state.buildType = type;
@@ -161,6 +171,7 @@ export default {
     RESET_FOR_SCENARIO: (state) => {
       state.selectedUnitIds = [];
       state.selectedBuildingId = null;
+      state.focusedUnitId = null;
 
       state.buildType = null;
       state.buildOrientation = 'vertical';
@@ -204,6 +215,25 @@ export default {
     },
     selectUnits: ({ commit }, ids) => {
       commit("SET_SELECTED", ids);
+    },
+    // Перебор юнитов внутри выделения: Tab (шаг +1) и Shift+Tab (шаг -1)
+    focusUnit: ({ state, commit }, step = 1) => {
+      const ids = state.selectedUnitIds;
+
+      if (ids.length === 0) {
+        commit("SET_FOCUSED_UNIT", null);
+        return;
+      }
+
+      const current = ids.indexOf(state.focusedUnitId);
+      const next =
+        current === -1
+          ? step > 0
+            ? 0
+            : ids.length - 1
+          : (current + step + ids.length) % ids.length;
+
+      commit("SET_FOCUSED_UNIT", ids[next]);
     },
     endDrag: ({ commit }) => {
       commit("END_DRAG");

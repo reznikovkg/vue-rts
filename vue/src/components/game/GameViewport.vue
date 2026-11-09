@@ -111,24 +111,32 @@
     </div>
     <div class="game-viewport__controls" :style="controlsStyle">
       <div class="game-viewport__row">
-        <span class="game-viewport__key">↑ ↓ ← →</span
-        ><span class="game-viewport__desc">Камера</span>
+        <span class="game-viewport__key">↑ ↓ ← → / WASD</span>
+        <span class="game-viewport__desc">Камера</span>
       </div>
       <div class="game-viewport__row">
-        <span class="game-viewport__key">Колесо</span
-        ><span class="game-viewport__desc">Зум</span>
+        <span class="game-viewport__key">Колесо</span>
+        <span class="game-viewport__desc">Зум</span>
       </div>
       <div class="game-viewport__row">
-        <span class="game-viewport__key">ЛКМ</span
-        ><span class="game-viewport__desc">Выбрать юнита</span>
+        <span class="game-viewport__key">ЛКМ</span>
+        <span class="game-viewport__desc">Выбрать / поставить</span>
       </div>
       <div class="game-viewport__row">
-        <span class="game-viewport__key">ЛКМ + drag</span
-        ><span class="game-viewport__desc">Выделить группу</span>
+        <span class="game-viewport__key">ЛКМ + drag</span>
+        <span class="game-viewport__desc">Выделить группу</span>
       </div>
       <div class="game-viewport__row">
-        <span class="game-viewport__key">ПКМ</span
-        ><span class="game-viewport__desc">Отправить к цели</span>
+        <span class="game-viewport__key">ПКМ</span>
+        <span class="game-viewport__desc">Идти / атаковать</span>
+      </div>
+      <div class="game-viewport__row">
+        <span class="game-viewport__key">Shift + ПКМ</span>
+        <span class="game-viewport__desc">Точка маршрута</span>
+      </div>
+      <div class="game-viewport__row">
+        <span class="game-viewport__key">Tab / Shift + Tab</span>
+        <span class="game-viewport__desc">Перебор юнитов</span>
       </div>
     </div>
   </div>
@@ -210,7 +218,17 @@ const getGameKey = (event) => {
   return event.key;
 };
 
+// Элементы форм не перехватываем: в них Tab — навигация по интерфейсу
+const isFormElement = (element) =>
+  Boolean(element?.closest?.("input, select, textarea"));
+
 const onKeyDown = (event) => {
+  if (event.key === "Tab" && !isFormElement(event.target)) {
+    event.preventDefault();
+    store.dispatch("game/focusUnit", event.shiftKey ? -1 : 1);
+    return;
+  }
+
   store.dispatch("events/keyDown", getGameKey(event));
 };
 
@@ -328,13 +346,13 @@ onUnmounted(() => {
   position: absolute;
   top: 90px;
   right: 24px;
-  padding: 1.2vw 1.6vw;
+  padding: 1vw 1.3vw;
   background: rgba(15, 15, 15, 0.82);
   color: #e8e8e8;
   border-radius: 10px;
-  font-size: clamp(18px, 1vw, 30px);
-  line-height: 1.9;
-  min-width: clamp(320px, 20vw, 520px);
+  font-size: clamp(16px, 0.9vw, 27px);
+  line-height: 1.75;
+  min-width: clamp(300px, 18.5vw, 480px);
   pointer-events: none;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
 }
@@ -342,7 +360,7 @@ onUnmounted(() => {
 .game-viewport__row {
   display: flex;
   justify-content: space-between;
-  gap: 1.5vw;
+  gap: 1.2vw;
   white-space: nowrap;
 }
 

@@ -6,12 +6,15 @@
 <TerrainLayer />
 
 
-    <div
-      v-for="unit in unitsWithTarget"
-      :key="'p' + unit.id"
-      class="game-world__path-line"
-      :style="pathStyle(unit)"
-    ></div>
+    <!-- Маршрут юнита: прерывистая линия до конца пути. Рисуется только пока маршрут есть -->
+    <template v-for="route in unitRoutes" :key="'p' + route.id">
+      <div
+        v-for="(segment, index) in route.segments"
+        :key="'p' + route.id + '-' + index"
+        class="game-world__path-line"
+        :style="segment"
+      ></div>
+    </template>
 
     <div
       v-if="ghost"
@@ -59,7 +62,6 @@ import BridgeTopLayer from '@/components/game/terrain/BridgeTopLayer.vue';
 const store = useStore();
 const units = computed(() => store.state.map.units);
 const buildings = computed(() => store.state.map.buildings);
-const unitsWithTarget = computed(() => units.value.filter((u) => u.target));
 const waterUnits = computed(() =>
   units.value.filter(unit => unit.movementType === 'water')
 );
@@ -67,6 +69,16 @@ const waterUnits = computed(() =>
 const landUnits = computed(() =>
   units.value.filter(unit => unit.movementType !== 'water')
 );
+
+// Оставшийся маршрут каждого юнита в виде отрезков для отрисовки.
+const unitRoutes = computed(() => {
+  const getPathSegments = store.getters['map/getPathSegments'];
+
+  return units.value
+    .filter((unit) => unit.target || (unit.path && unit.path.length > 0))
+    .map((unit) => ({ id: unit.id, segments: getPathSegments(unit) }))
+    .filter((route) => route.segments.length > 0);
+});
 const worldStyle = computed(() => {
   const { viewport, camera } = store.state.game;
   const cx = viewport.width / 2;
@@ -88,8 +100,6 @@ const groundStyle = computed(() => ({
   height: `${MAP_SIZE}px`,
   backgroundSize: `${GRID_STEP}px ${GRID_STEP}px`
 }));
-
-const pathStyle = computed(() => store.getters['map/getPathStyle']);
 
 // Призрак здания под курсором в режиме строительства
 const ghost = computed(() => {

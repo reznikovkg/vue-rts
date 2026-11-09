@@ -7,17 +7,23 @@ import {
   EDGE_PADDING,
   GRID_STEP,
   BUILDING_TYPES,
+  TERRAIN_TYPES,
   groupById,
   MOVEMENT_TYPES,
 } from '@/config/game';
 import { getTerrainAt } from '@/utils/terrain';
-import { buildPath, buildAttackPath } from '@/utils/pathfinding';
+import { buildPath, buildAttackPath, ATTACK_SLOTS } from '@/utils/pathfinding';
 import { useIsoMath } from '@/composables/useIsoMath';
 
 const { worldToScreen } = useIsoMath();
 
 const LIMIT = MAP_SIZE / 2 - UNIT_RADIUS - EDGE_PADDING;
 const clamp = (v) => Math.max(-LIMIT, Math.min(LIMIT, v));
+
+// Пауза перед повторным поиском пути к цели атаки, если путь найти не удалось
+const REPATH_DELAY = 0.4;
+// Минимальная дистанция между центрами юнитов: юниты не должны слипаться
+const UNIT_MIN_DISTANCE = UNIT_RADIUS * 2 + 2;
 
 const buildingType = (type) => BUILDING_TYPES.find((b) => b.type === type);
 
@@ -37,6 +43,12 @@ const unit = (
   path: [],
   pathIndex: 0,
   targetQueue: [],
+  // Текущая цель атаки и занятая юнитом сторона цели
+  attackTarget: null,
+  attackSlot: null,
+  attackTimer: 0,
+  // Задержка перед повторным поиском пути к цели атаки
+  repathTimer: 0,
   group,
   movementType,
   ...UNIT_STATS,
@@ -161,6 +173,86 @@ const resolveCollisions = (x, y, r, buildings) => {
   return position;
 };
 
+// Может ли юнит стоять в точке по правилам местности
+const canUnitStandAt = (x, y, movementType) => {
+  const terrain = getTerrainAt(x, y);
+
+  if (movementType === MOVEMENT_TYPES.WATER) {
+    return terrain === TERRAIN_TYPES.WATER;
+  }
+
+  return terrain === TERRAIN_TYPES.LAND || isBridgeAt(x, y);
+};
+
+// Аккуратно сдвигаем юнита, не заталкивая его в постройку, за границу карты
+// или на недоступную для него местность
+const pushUnit = (unit, dx, dy, buildings) => {
+  if (!dx && !dy) return;
+
+  const x = clamp(unit.position.x + dx);
+  const y = clamp(unit.position.y + dy);
+
+  const fixed = resolveCollisions(x, y, UNIT_RADIUS, buildings);
+  const nextX = clamp(fixed.x);
+  const nextY = clamp(fixed.y);
+
+  if (!canUnitStandAt(nextX, nextY, unit.movementType)) return;
+
+  unit.position.x = nextX;
+  unit.position.y = nextY;
+};
+
+// Юниты не должны слипаться в одну точку: пересекающиеся пары расталкиваются
+const separateUnits = (units, buildings) => {
+  for (let iteration = 0; iteration < 2; iteration++) {
+    for (let i = 0; i < units.length; i++) {
+      const a = units[i];
+
+      for (let j = i + 1; j < units.length; j++) {
+        const b = units[j];
+
+        // Наземные и водные юниты не пересекаются: мост проходит над водой
+        if (a.movementType !== b.movementType) continue;
+
+        let dx = b.position.x - a.position.x;
+        let dy = b.position.y - a.position.y;
+        let distance = Math.hypot(dx, dy);
+
+        if (distance >= UNIT_MIN_DISTANCE) continue;
+
+        if (distance < 0.001) {
+          // Центры совпали — расходимся в стабильном для пары направлении
+          const angle = (((a.id * 37 + b.id * 91) % 360) * Math.PI) / 180;
+
+          dx = Math.cos(angle);
+          dy = Math.sin(angle);
+          distance = 1;
+        }
+
+        const overlap = (UNIT_MIN_DISTANCE - distance) / 2;
+        const pushX = (dx / distance) * overlap;
+        const pushY = (dy / distance) * overlap;
+
+        pushUnit(a, -pushX, -pushY, buildings);
+        pushUnit(b, pushX, pushY, buildings);
+      }
+    }
+  }
+};
+
+// Стороны цели, которые уже заняты другими атакующими
+const attackSlotsOf = (units, targetId, excludeId) =>
+  units
+    .filter(
+      (other) =>
+        other.id !== excludeId &&
+        other.attackTarget &&
+        other.attackTarget.id === targetId &&
+        other.attackSlot !== null &&
+        other.attackSlot !== undefined
+    )
+    .map((other) => other.attackSlot);
+
 
 
 const findSpawnPosition = (building, buildings, units) => {
@@ -246,6 +338,53 @@ export default {
         { label: "Скорость", value: u.speed },
         { label: "Скор. атаки", value: `${u.attackSpeed}/с` },
       ]);
+    },
+
+    // Сводка по выделенному отряду
+    getSquadStats: (state) => (unitIds) => {
+      const units = state.units.filter((u) => unitIds.includes(u.id));
+      if (units.length === 0) return null;
+
+      // Группировка юнитов по ключу: тип или группа
+      const groupUnits = (keyOf, labelOf) => {
+        const buckets = new Map();
+
+        units.forEach((u) => {
+          const key = keyOf(u);
+          const bucket = buckets.get(key) ?? {
+            key,
+            label: labelOf(u),
+            count: 0,
+          };
+
+          bucket.count += 1;
+          buckets.set(key, bucket);
+        });
+
+        return [...buckets.values()].sort((a, b) => b.count - a.count);
+      };
+
+      const average = (getValue) =>
+        Math.round(
+          units.reduce((sum, u) => sum + getValue(u), 0) / units.length
+        );
+
+      return {
+        count: units.length,
+        types: groupUnits(
+          (u) => u.type,
+          (u) => u.label
+        ),
+        groups: groupUnits(
+          (u) => u.group,
+          (u) => groupById(u.group).label
+        ),
+        totalHp: units.reduce((sum, u) => sum + u.hp, 0),
+        totalMaxHp: units.reduce((sum, u) => sum + u.maxHp, 0),
+        totalStrength: units.reduce((sum, u) => sum + u.strength, 0),
+        speed: average((u) => u.speed),
+        attackSpeed: Math.round(average((u) => u.attackSpeed * 10)) / 10,
+      };
     },
 
     getBuildingStats: (state) => (buildingId) => {
@@ -425,6 +564,9 @@ export default {
 
     u.attackTarget = { id: targetId, type: targetType };
     u.attackTimer = 0;
+    // Сторона цели будет выбрана при первом поиске пути с учётом занятых сторон
+    u.attackSlot = null;
+    u.repathTimer = 0;
     u.target = null;
     u.path = [];
     u.pathIndex = 0;
@@ -650,12 +792,17 @@ const getAttackTarget = (u) => {
   );
 };
 state.units.forEach((u) => {
+  // Отсчёт задержки перед повторным поиском пути
+  u.repathTimer = Math.max(0, (u.repathTimer || 0) - dt);
+
   if (u.attackTarget) {
     const target = getAttackTarget(u);
 
     if (!target || target.hp <= 0) {
       u.attackTarget = null;
       u.attackTimer = 0;
+      u.attackSlot = null;
+      u.repathTimer = 0;
       u.target = null;
       u.path = [];
       u.pathIndex = 0;
@@ -703,19 +850,32 @@ if (u.attackTimer >= attackInterval) {
 
 return;
 }
-if (!u.target || !u.path || u.path.length === 0) {
-  u.path = buildAttackPath(
+const needsPath = !u.target || !u.path || u.path.length === 0;
+
+// Путь к цели атаки: каждый юнит занимает свою сторону цели
+if (needsPath && u.repathTimer <= 0) {
+  const attackers = state.units.filter(
+    (other) => other.attackTarget && other.attackTarget.id === target.id
+  ).length;
+
+  const { path, slot } = buildAttackPath(
     u.position,
     target,
     state.buildings,
     u.movementType,
-    u.attackTarget.type
+    u.attackTarget.type,
+    {
+      slots: Math.max(ATTACK_SLOTS, attackers),
+      occupied: attackSlotsOf(state.units, target.id, u.id),
+    }
   );
 
+  u.path = path;
   u.pathIndex = 0;
-  u.target = u.path.length > 0
-    ? u.path[u.path.length - 1]
-    : null;
+  u.attackSlot = slot;
+  u.target = path.length > 0 ? path[path.length - 1] : null;
+  // Цель недостижима — не ищем путь заново каждый кадр
+  u.repathTimer = path.length > 0 ? 0 : REPATH_DELAY;
 }
   }
 
@@ -770,6 +930,8 @@ if (!u.target || !u.path || u.path.length === 0) {
         }
       });
       commit("REMOVE_DESTROYED");
+      // Юниты не должны слипаться в одну точку — расталкиваем пересекающиеся пары
+      separateUnits(state.units, state.buildings);
     },
 
     spawnUnit: ({ state, commit }, buildingId) => {

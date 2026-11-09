@@ -1,7 +1,7 @@
 <template>
   <div
     class="unit"
-    :class="{ 'unit--selected': isSelected }"
+    :class="{ 'unit--selected': isSelected, 'unit--focused': isFocused }"
     :style="style"
     @click.stop="() => onClick()"
   ></div>
@@ -18,6 +18,10 @@ const props = defineProps({
 
 const store = useStore();
 const isSelected = computed(() => store.getters['game/isUnitSelected'](props.unit.id));
+// Юнит, выбранный для просмотра характеристик (Tab внутри выделения)
+const isFocused = computed(
+  () => isSelected.value && store.state.game.focusedUnitId === props.unit.id
+);
 // Фон юнита — цвет его группы
 const color = computed(() => groupById(props.unit.group).color);
 
@@ -45,6 +49,13 @@ const onClick = () => store.dispatch('events/clickUnit', props.unit.id);
   &.unit--selected {
     border-color: #8a6010;
     box-shadow: 0 0 0 2px #8a6010;
+  }
+
+  &.unit--focused {
+    border-color: #a0d0ff;
+    box-shadow:
+      0 0 0 2px #a0d0ff,
+      0 0 0 4px rgba(160, 208, 255, 0.4);
   }
 
   &:hover {

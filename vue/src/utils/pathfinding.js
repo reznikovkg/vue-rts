@@ -4,6 +4,11 @@ import { getTerrainAt } from '@/utils/terrain';
 const CELL = UNIT_RADIUS;
 const GRID_LIMIT = Math.floor((MAP_SIZE / 2 - UNIT_RADIUS) / CELL);
 
+// Сколько сторон цели может занять группа атакующих юнитов
+export const ATTACK_SLOTS = 8;
+// Минимальный шаг между точками вокруг цели, чтобы юниты не встали друг на друга
+const ATTACK_MIN_GAP = UNIT_RADIUS * 2 + 6;
+
 // Координаты моста в мировых координатах
 const BRIDGE_START = { x: -170, y: -170 };
 const BRIDGE_END = { x: 75, y: -172 };
@@ -303,59 +308,97 @@ export const buildPath = (
 
   return smoothPath(start, raw, buildings, radius, movementType);
 };
+// Путь к цели атаки.
+// Вокруг цели строится кольцо из слотов (точек, откуда юнит достаёт цель),
+// каждый юнит занимает свою сторону: занятые слоты передаются в occupied.
+// Возвращает { path, slot }, где slot — занятая юнитом сторона цели.
 export const buildAttackPath = (
   start,
   target,
   buildings,
   movementType,
-  targetType
+  targetType,
+  options = {}
 ) => {
-  const targetRadius = targetType === "unit" ? UNIT_RADIUS : 0;
+  const requestedSlots = Math.max(1, Math.floor(options.slots ?? ATTACK_SLOTS));
+  const occupied = options.occupied ?? [];
 
   const width =
     targetType === "unit"
-      ? targetRadius * 2
+      ? UNIT_RADIUS * 2
       : target.width ?? target.size;
 
   const height =
     targetType === "unit"
-      ? targetRadius * 2
+      ? UNIT_RADIUS * 2
       : target.height ?? target.size;
 
+  // Кольцо точек вокруг цели строго на дистанции атаки:
+  // дальше — юнит не достанет цель, ближе — упрётся в саму цель
   const halfWidth = width / 2 + ATTACK_RANGE;
   const halfHeight = height / 2 + ATTACK_RANGE;
 
-  const candidates = [];
+  // Сколько точек помещается вокруг цели, чтобы юниты не встали друг на друга
+  const perimeter = Math.PI * (halfWidth + halfHeight);
+  const capacity = Math.max(
+    1,
+    Math.floor(perimeter / ATTACK_MIN_GAP)
+  );
+  const slotCount = Math.min(requestedSlots, capacity);
 
-  for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 4) {
-    const x = target.position.x + Math.cos(angle) * halfWidth;
-    const y = target.position.y + Math.sin(angle) * halfHeight;
+  // Направление от цели на юнита: с этой стороны начинаем искать свободный слот
+  const naturalAngle = Math.atan2(
+    (start.y - target.position.y) / halfHeight,
+    (start.x - target.position.x) / halfWidth
+  );
+
+  const slots = [];
+
+  for (let slot = 0; slot < slotCount; slot++) {
+    const angle = (slot / slotCount) * Math.PI * 2;
+
+    slots.push({
+      slot,
+      angle,
+      delta: Math.abs(
+        Math.atan2(
+          Math.sin(angle - naturalAngle),
+          Math.cos(angle - naturalAngle)
+        )
+      ),
+    });
+  }
+
+  // Ближайшие по направлению стороны цели проверяем первыми
+  slots.sort((a, b) => a.delta - b.delta);
+
+  let fallback = null;
+
+  for (const candidate of slots) {
+    const point = {
+      x: target.position.x + Math.cos(candidate.angle) * halfWidth,
+      y: target.position.y + Math.sin(candidate.angle) * halfHeight,
+    };
 
     const path = buildPath(
       start,
-      { x, y },
+      point,
       buildings,
       UNIT_RADIUS,
       movementType
     );
 
-    if (path.length > 0) {
-      const length = path.reduce((total, point, index) => {
-        const previous = index === 0 ? start : path[index - 1];
+    if (path.length === 0) continue;
 
-        return total + Math.hypot(
-          point.x - previous.x,
-          point.y - previous.y
-        );
-      }, 0);
+    if (!occupied.includes(candidate.slot)) {
+      return { path, slot: candidate.slot };
+    }
 
-      candidates.push({ path, length });
+    // Все стороны заняты — запоминаем самый короткий путь как запасной вариант
+    if (!fallback) {
+      fallback = { path, slot: candidate.slot };
     }
   }
 
-  if (candidates.length === 0) return [];
-
-  candidates.sort((a, b) => a.length - b.length);
-
-  return candidates[0].path;
+  return fallback ?? { path: [], slot: null };
 };
