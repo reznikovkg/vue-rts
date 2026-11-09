@@ -1,46 +1,44 @@
 import { worldWidth, worldHeight, worldToScreen, screenToWorld } from './map'
-import { UNIT_RADIUS, type MapObject } from './occupancy'
+import { UNIT_RADIUS, distanceToObject, objectHalf, type MapObject } from './occupancy'
 import { getTerrain, type Terrain } from './terrain'
 
 type Point = { x: number; y: number }
 
-// Try a direct line first, then the eight points around each building.
+// Try a direct line first, then the corners around each building.
 export const findPath = (start: Point, target: Point, objects: MapObject[], terrain: Terrain): Point[] | null => {
-  const buildings = objects.map(object => ({ ...worldToScreen(object.x, object.y), radius: object.radius + UNIT_RADIUS }))
-  const valid = (point: Point) => {
-    const world = screenToWorld(point.x, point.y)
-    return Math.abs(world.x) <= worldWidth / 2 && Math.abs(world.y) <= worldHeight / 2
-      && getTerrain(world.x, world.y) === terrain
-      && buildings.every(building => Math.hypot(point.x - building.x, point.y - building.y) >= building.radius + 1)
-  }
+  const valid = (point: Point) => Math.abs(point.x) <= worldWidth / 2 && Math.abs(point.y) <= worldHeight / 2
+    && getTerrain(point.x, point.y) === terrain
   const clear = (from: Point, to: Point) => {
     if (!valid(from) || !valid(to)) return false
-    const dx = to.x - from.x
-    const dy = to.y - from.y
+    const a = worldToScreen(from.x, from.y)
+    const b = worldToScreen(to.x, to.y)
+    const dx = b.x - a.x
+    const dy = b.y - a.y
     const length = Math.hypot(dx, dy)
     for (let i = 1; i < Math.ceil(length / 8); i++) {
-      const world = screenToWorld(from.x + dx * i * 8 / length, from.y + dy * i * 8 / length)
+      const world = screenToWorld(a.x + dx * i * 8 / length, a.y + dy * i * 8 / length)
       if (getTerrain(world.x, world.y) !== terrain) return false
     }
-    return buildings.every(building => {
-      const part = Math.max(0, Math.min(1,
-        ((building.x - from.x) * dx + (building.y - from.y) * dy) / (length * length || 1)))
-      return Math.hypot(from.x + dx * part - building.x, from.y + dy * part - building.y) >= building.radius + 1
-    })
+    return objects.every(object => distanceToObject(a, b, object) >= UNIT_RADIUS - 0.01)
+  }
+  const distance = (a: Point, b: Point) => {
+    const from = worldToScreen(a.x, a.y)
+    const to = worldToScreen(b.x, b.y)
+    return Math.hypot(to.x - from.x, to.y - from.y)
   }
 
-  const first = worldToScreen(start.x, start.y)
-  const last = worldToScreen(target.x, target.y)
-  if (clear(first, last)) return [target]
+  if (clear(start, target)) return [target]
 
-  const points: Point[] = [first, last]
-  buildings.forEach(building => {
-    for (let i = 0; i < 8; i++) {
-      const angle = i * Math.PI / 4
-      const radius = (building.radius + 5) * 1.1
-      const point = { x: building.x + Math.cos(angle) * radius, y: building.y + Math.sin(angle) * radius }
+  const axisX = worldToScreen(1, 0)
+  const axisY = worldToScreen(0, 1)
+  const gap = (UNIT_RADIUS + 2) * Math.hypot(axisY.x, axisY.y) / Math.abs(axisX.x * axisY.y - axisX.y * axisY.x)
+  const points: Point[] = [start, target]
+  objects.forEach(object => {
+    const offset = objectHalf(object) + gap
+    ;[[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach(([sx, sy]) => {
+      const point = { x: object.x + sx * offset, y: object.y + sy * offset }
       if (valid(point)) points.push(point)
-    }
+    })
   })
 
   // Dijkstra on these few points chooses the shorter side of the obstacle.
@@ -56,9 +54,9 @@ export const findPath = (start: Point, target: Point, objects: MapObject[], terr
     visited[current] = true
     for (let next = 1; next < points.length; next++) {
       if (visited[next] || !clear(points[current], points[next])) continue
-      const distance = distances[current] + Math.hypot(points[next].x - points[current].x, points[next].y - points[current].y)
-      if (distance < distances[next]) {
-        distances[next] = distance
+      const total = distances[current] + distance(points[current], points[next])
+      if (total < distances[next]) {
+        distances[next] = total
         previous[next] = current
       }
     }
@@ -66,7 +64,7 @@ export const findPath = (start: Point, target: Point, objects: MapObject[], terr
   if (previous[1] === -1) return null
   const path: Point[] = []
   for (let index = 1; index !== 0; index = previous[index]) {
-    path.unshift(index === 1 ? target : screenToWorld(points[index].x, points[index].y))
+    path.unshift(points[index])
   }
   return path
 }

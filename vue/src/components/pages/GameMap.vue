@@ -3,7 +3,7 @@
       class="field-viewport"
       @mousedown="onMouseDown"
       @click.capture="onClickCapture"
-      @click="emit('background-click')"
+      @click="onClick"
       @contextmenu.prevent
       @wheel.prevent="onWheel"
   >
@@ -51,6 +51,7 @@
       <slot />
     </svg>
     <div v-if="isSelecting" class="selection-box" :style="selectionStyle" />
+    <slot name="overlay" />
   </div>
 </template>
 
@@ -72,21 +73,30 @@ import { waterOutline } from '@/game/terrain'
 const emit = defineEmits<{
   tick: [delta: number]
   command: [x: number, y: number, queue: boolean]
-  'background-click': []
-  'select-area': [left: number, top: number, right: number, bottom: number]
+  'background-click': [x: number, y: number, additive: boolean]
+  'pointer-move': [x: number, y: number]
+  'select-area': [left: number, top: number, right: number, bottom: number, additive: boolean]
 }>()
 
 const xLabel = worldToScreen(160, 0)
 const yLabel = worldToScreen(0, 160)
 
-const onContextMenu = (event: MouseEvent) => {
-  const svg = event.currentTarget as SVGSVGElement
-  const matrix = svg.getScreenCTM()
-  if (!matrix) return
+// The inverse SVG matrix accounts for the page position and the camera in viewBox.
+const toWorld = (clientX: number, clientY: number) => {
+  const matrix = svgRef.value?.getScreenCTM()
+  if (!matrix) return null
+  const point = new DOMPoint(clientX, clientY).matrixTransform(matrix.inverse())
+  return screenToWorld(point.x, point.y)
+}
 
-  // The inverse SVG matrix accounts for the page position and the camera in viewBox.
-  const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse())
-  const target = screenToWorld(point.x, point.y)
+const onClick = (event: MouseEvent) => {
+  const target = toWorld(event.clientX, event.clientY)
+  if (target) emit('background-click', target.x, target.y, event.shiftKey)
+}
+
+const onContextMenu = (event: MouseEvent) => {
+  const target = toWorld(event.clientX, event.clientY)
+  if (!target) return
   emit(
       'command',
       Math.max(-worldWidth / 2, Math.min(worldWidth / 2, target.x)),
@@ -136,6 +146,8 @@ const onMouseDown = (event: MouseEvent) => {
 }
 
 const onMouseMove = (event: MouseEvent) => {
+  const target = toWorld(event.clientX, event.clientY)
+  if (target) emit('pointer-move', target.x, target.y)
   const start = selectionStart.value
   if (!start) return
   const rect = (svgRef.value?.parentElement as HTMLElement).getBoundingClientRect()
@@ -155,7 +167,7 @@ const onMouseUp = (event: MouseEvent) => {
       const first = new DOMPoint(start.clientX, start.clientY).matrixTransform(inverse)
       const last = new DOMPoint(event.clientX, event.clientY).matrixTransform(inverse)
       emit('select-area', Math.min(first.x, last.x), Math.min(first.y, last.y),
-        Math.max(first.x, last.x), Math.max(first.y, last.y))
+        Math.max(first.x, last.x), Math.max(first.y, last.y), event.shiftKey)
     }
     suppressClick = true
     window.setTimeout(() => suppressClick = false, 0)

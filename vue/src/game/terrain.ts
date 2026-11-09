@@ -9,6 +9,9 @@ export const getTerrain = (x: number, y: number): Terrain =>
   x >= waterArea.left && x <= waterArea.right && y >= waterArea.top && y <= waterArea.bottom
     ? 'water' : 'land'
 
+export const overlapsWater = (left: number, top: number, right: number, bottom: number) =>
+  left < waterArea.right && right > waterArea.left && top < waterArea.bottom && bottom > waterArea.top
+
 export const waterOutline = [
   worldToScreen(waterArea.left, waterArea.top),
   worldToScreen(waterArea.right, waterArea.top),
