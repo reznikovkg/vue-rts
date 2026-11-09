@@ -23,16 +23,16 @@
       :offset="HEALTH_BAR.unitOffset"
       :style="{ zIndex: Z_INDEX.HEALTH_BAR }"
     />
-    <HealthBar
-      v-for="b in focusedBuildings"
-      :key="'hpb' + b.id"
-      :hp="b.hp"
-      :max-hp="b.maxHp"
-      :screen="b.screen"
-      :width="b.size"
-      :offset="b.size / 4 + HEALTH_BAR.buildingOffset"
-      :style="{ zIndex: Z_INDEX.HEALTH_BAR }"
-    />
+<HealthBar
+  v-for="b in focusedBuildings"
+  :key="'hpb' + b.id"
+  :hp="b.hp"
+  :max-hp="b.maxHp"
+  :screen="b.screen"
+  :width="b.width ?? b.size"
+  :offset="(b.height ?? b.size) / 4 + HEALTH_BAR.buildingOffset"
+  :style="{ zIndex: Z_INDEX.HEALTH_BAR }"
+/>
 
     <BuildPanel />
     <StatsPanel />

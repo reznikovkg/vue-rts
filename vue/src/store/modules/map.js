@@ -1,6 +1,8 @@
 import {
   UNIT_STATS,
   UNIT_RADIUS,
+  ATTACK_RANGE,
+  UNIT_TYPES,
   MAP_SIZE,
   EDGE_PADDING,
   GRID_STEP,
@@ -9,7 +11,7 @@ import {
   MOVEMENT_TYPES,
 } from '@/config/game';
 import { getTerrainAt } from '@/utils/terrain';
-import { buildPath } from '@/utils/pathfinding';
+import { buildPath, buildAttackPath } from '@/utils/pathfinding';
 import { useIsoMath } from '@/composables/useIsoMath';
 
 const { worldToScreen } = useIsoMath();
@@ -26,7 +28,8 @@ const unit = (
   tileX,
   tileY,
   group = "group1",
-  movementType = MOVEMENT_TYPES.LAND
+  movementType = MOVEMENT_TYPES.LAND,
+  unitType = UNIT_TYPES.SWORDSMAN
 ) => ({
   id: nextUnitId++,
   position: { x: tileX * GRID_STEP, y: tileY * GRID_STEP },
@@ -37,7 +40,8 @@ const unit = (
   group,
   movementType,
   ...UNIT_STATS,
-  maxHp: UNIT_STATS.hp,
+  ...unitType,
+  maxHp: unitType.hp,
   damagedAt: null,
   screen: { x: 0, y: 0 },
 });
@@ -236,6 +240,7 @@ export default {
       if (units.length === 0) return [];
       return units.map((u) => [
         { label: "Группа", value: groupById(u.group).label },
+        { label: "Тип", value: u.label },
         { label: "Здоровье", value: `${u.hp} / ${u.maxHp}` },
         { label: "Сила", value: u.strength },
         { label: "Скорость", value: u.speed },
@@ -413,6 +418,43 @@ export default {
   },
 
   mutations: {
+    SET_ATTACK_TARGET: (state, { unitIds, targetId, targetType }) => {
+  unitIds.forEach((id) => {
+    const u = state.units.find((unit) => unit.id === id);
+    if (!u) return;
+
+    u.attackTarget = { id: targetId, type: targetType };
+    u.attackTimer = 0;
+    u.target = null;
+    u.path = [];
+    u.pathIndex = 0;
+    u.targetQueue = [];
+  });
+},
+APPLY_DAMAGE: (state, { id, amount, time }) => {
+  const target =
+    state.units.find((u) => u.id === id) ||
+    state.buildings.find((b) => b.id === id);
+
+  if (!target) return;
+
+  target.hp = Math.max(0, target.hp - amount);
+  target.damagedAt = time;
+},
+REMOVE_DESTROYED: (state) => {
+  const aliveUnits = state.units.filter((unit) => unit.hp > 0);
+  const aliveBuildings = state.buildings.filter(
+    (building) => building.hp > 0
+  );
+
+  if (aliveUnits.length !== state.units.length) {
+    state.units = aliveUnits;
+  }
+
+  if (aliveBuildings.length !== state.buildings.length) {
+    state.buildings = aliveBuildings;
+  }
+},
     SET_TARGET: (state, { id, target }) => {
       const u = state.units.find((u) => u.id === id);
       if (!u) return;
@@ -423,6 +465,8 @@ export default {
         u.targetQueue = [];
         return;
       }
+      u.attackTarget = null;
+u.attackTimer = 0;
       let t = { x: clamp(target.x), y: clamp(target.y) };
 
       // Если точка внутри здания — выталкиваем её на границу
@@ -510,8 +554,16 @@ export default {
       target.damagedAt = time;
     },
 
-    ADD_UNIT: (state, { position, group, movementType = MOVEMENT_TYPES.LAND }) => {
-      const newUnit = unit(0, 0, group, movementType);
+    ADD_UNIT: (
+      state,
+      {
+        position,
+        group,
+        movementType = MOVEMENT_TYPES.LAND,
+        unitType = UNIT_TYPES.SWORDSMAN,
+      }
+    ) => {
+      const newUnit = unit(0, 0, group, movementType, unitType);
       newUnit.position = position;
       state.units.push(newUnit);
     },
@@ -545,11 +597,15 @@ export default {
       commit("CLEAR_MAP");
 
       // Создаём юнитов с новыми ID.
-      scenario.units.forEach(([x, y, group, movementType]) => {
+      scenario.units.forEach(([x, y, group, movementType, unitType]) => {
+        const selectedUnitType = unitType
+        ? Object.values(UNIT_TYPES).find((item) => item.type === unitType)
+        : UNIT_TYPES.SWORDSMAN;
         commit("ADD_UNIT", {
           position: { x: x * GRID_STEP, y: y * GRID_STEP },
           group,
           movementType,
+          unitType: selectedUnitType,
         });
       });
 
@@ -580,9 +636,90 @@ export default {
     moveUnits: ({ state, commit }, dt) => {
       const R = UNIT_RADIUS;
       const B = state.buildings;
+const getAttackTarget = (u) => {
+  if (!u.attackTarget) return null;
 
-      state.units.forEach((u) => {
-        if (!u.target) return;
+  if (u.attackTarget.type === "unit") {
+    return state.units.find(
+      (target) => target.id === u.attackTarget.id
+    );
+  }
+
+  return state.buildings.find(
+    (target) => target.id === u.attackTarget.id
+  );
+};
+state.units.forEach((u) => {
+  if (u.attackTarget) {
+    const target = getAttackTarget(u);
+
+    if (!target || target.hp <= 0) {
+      u.attackTarget = null;
+      u.attackTimer = 0;
+      u.target = null;
+      u.path = [];
+      u.pathIndex = 0;
+      u.targetQueue = [];
+      return;
+    }
+    const targetWidth =
+  u.attackTarget.type === "unit"
+    ? UNIT_RADIUS * 2
+    : target.width ?? target.size;
+
+const targetHeight =
+  u.attackTarget.type === "unit"
+    ? UNIT_RADIUS * 2
+    : target.height ?? target.size;
+
+const dx = Math.max(
+  Math.abs(u.position.x - target.position.x) - targetWidth / 2,
+  0
+);
+
+const dy = Math.max(
+  Math.abs(u.position.y - target.position.y) - targetHeight / 2,
+  0
+);
+
+const distance = Math.hypot(dx, dy);
+if (distance <= ATTACK_RANGE) {
+  u.target = null;
+  u.path = [];
+  u.pathIndex = 0;
+u.attackTimer = (u.attackTimer || 0) + dt;
+
+const attackInterval = 1 / u.attackSpeed;
+
+if (u.attackTimer >= attackInterval) {
+  commit("APPLY_DAMAGE", {
+    id: target.id,
+    amount: u.strength,
+    time: Date.now(),
+  });
+
+  u.attackTimer -= attackInterval;
+}
+
+return;
+}
+if (!u.target || !u.path || u.path.length === 0) {
+  u.path = buildAttackPath(
+    u.position,
+    target,
+    state.buildings,
+    u.movementType,
+    u.attackTarget.type
+  );
+
+  u.pathIndex = 0;
+  u.target = u.path.length > 0
+    ? u.path[u.path.length - 1]
+    : null;
+}
+  }
+
+  if (!u.target) return;
         if (!u.path || u.path.length === 0) {
           u.target = null;
           u.pathIndex = 0;
@@ -632,6 +769,7 @@ export default {
           }
         }
       });
+      commit("REMOVE_DESTROYED");
     },
 
     spawnUnit: ({ state, commit }, buildingId) => {

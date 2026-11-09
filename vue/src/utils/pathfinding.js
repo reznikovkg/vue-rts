@@ -1,4 +1,4 @@
-import { MAP_SIZE, UNIT_RADIUS, TERRAIN_TYPES, MOVEMENT_TYPES } from '@/config/game';
+import { MAP_SIZE, UNIT_RADIUS, TERRAIN_TYPES, MOVEMENT_TYPES, ATTACK_RANGE, } from '@/config/game';
 import { getTerrainAt } from '@/utils/terrain';
 
 const CELL = UNIT_RADIUS;
@@ -302,4 +302,60 @@ export const buildPath = (
   if (!raw) return [];
 
   return smoothPath(start, raw, buildings, radius, movementType);
+};
+export const buildAttackPath = (
+  start,
+  target,
+  buildings,
+  movementType,
+  targetType
+) => {
+  const targetRadius = targetType === "unit" ? UNIT_RADIUS : 0;
+
+  const width =
+    targetType === "unit"
+      ? targetRadius * 2
+      : target.width ?? target.size;
+
+  const height =
+    targetType === "unit"
+      ? targetRadius * 2
+      : target.height ?? target.size;
+
+  const halfWidth = width / 2 + ATTACK_RANGE;
+  const halfHeight = height / 2 + ATTACK_RANGE;
+
+  const candidates = [];
+
+  for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 4) {
+    const x = target.position.x + Math.cos(angle) * halfWidth;
+    const y = target.position.y + Math.sin(angle) * halfHeight;
+
+    const path = buildPath(
+      start,
+      { x, y },
+      buildings,
+      UNIT_RADIUS,
+      movementType
+    );
+
+    if (path.length > 0) {
+      const length = path.reduce((total, point, index) => {
+        const previous = index === 0 ? start : path[index - 1];
+
+        return total + Math.hypot(
+          point.x - previous.x,
+          point.y - previous.y
+        );
+      }, 0);
+
+      candidates.push({ path, length });
+    }
+  }
+
+  if (candidates.length === 0) return [];
+
+  candidates.sort((a, b) => a.length - b.length);
+
+  return candidates[0].path;
 };

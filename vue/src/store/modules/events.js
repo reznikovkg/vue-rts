@@ -1,7 +1,44 @@
-import { EVENT_TYPE, DRAG_THRESHOLD } from "@/config/game";
+import { EVENT_TYPE, DRAG_THRESHOLD, UNIT_RADIUS } from "@/config/game";
 import { BUILDING_TYPES } from "@/config/game";
 let nextEventId = 1;
+const findTargetAtPosition = (world, units, buildings) => {
+  const unit = units.find((u) => {
+    const distance = Math.hypot(
+      u.position.x - world.x,
+      u.position.y - world.y,
+    );
 
+    return distance <= UNIT_RADIUS;
+  });
+
+  if (unit) return { ...unit, targetType: "unit" };
+
+  const building = buildings.find((b) => {
+    const width = b.width ?? b.size;
+    const height = b.height ?? b.size;
+
+    return (
+      Math.abs(world.x - b.position.x) <= width / 2 &&
+      Math.abs(world.y - b.position.y) <= height / 2
+    );
+  });
+
+  if (building) return { ...building, targetType: "building" };
+
+  return null;
+};
+const canAttackTarget = (unit, target) => {
+  if (unit.group === target.group) return false;
+
+  const targetMovementType =
+    target.targetType === "unit"
+      ? target.movementType
+      : target.type === "ship"
+        ? "water"
+        : "land";
+
+  return unit.movementType === targetMovementType;
+};
 // Модуль: очередь текущих событий, накопленных за кадр
 export default {
   namespaced: true,
@@ -69,7 +106,17 @@ export default {
           });
           return;
         }
+if (event.type === EVENT_TYPE.ATTACK_TARGET) {
+  const { unitIds, targetId, targetType } = event.payload;
 
+  commit(
+    "map/SET_ATTACK_TARGET",
+    { unitIds, targetId, targetType },
+    { root: true },
+  );
+
+  return;
+}
         if (event.type === EVENT_TYPE.ZOOM_CAMERA) {
           commit("game/PUSH_ZOOM", event.payload, { root: true });
           return;
@@ -255,7 +302,30 @@ export default {
       if (unitIds.length === 0) return;
 
       const target = rootGetters["game/getWorldByScreen"](cursor);
+const targetObject = findTargetAtPosition(
+  target,
+  rootState.map.units,
+  rootState.map.buildings,
+);
+if (targetObject) {
+  const compatibleUnits = rootState.map.units.filter(
+    (unit) =>
+      unitIds.includes(unit.id) &&
+      canAttackTarget(unit, targetObject),
+  );
 
+  if (compatibleUnits.length > 0) {
+    dispatch("pushEvent", {
+      type: EVENT_TYPE.ATTACK_TARGET,
+      payload: {
+        unitIds: compatibleUnits.map((unit) => unit.id),
+        targetId: targetObject.id,
+        targetType: targetObject.targetType,
+      },
+    });
+    return;
+  }
+}
       if (isShift) {
         unitIds.forEach((id) => {
           commit("map/ADD_TARGET_TO_QUEUE", { id, target }, { root: true });

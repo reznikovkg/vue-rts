@@ -5,7 +5,10 @@ export const useGameLoop = (callback) => {
   let lastTime = 0;
 
   const loop = (time) => {
-    const dt = lastTime ? (time - lastTime) / 1000 : 0;
+    // const dt = lastTime ? (time - lastTime) / 1000 : 0;
+    const dt = lastTime
+  ? Math.min((time - lastTime) / 1000, 0.05)
+  : 0;
     lastTime = time;
     callback(dt);
     rafId = requestAnimationFrame(loop);

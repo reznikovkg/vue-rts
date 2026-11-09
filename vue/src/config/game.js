@@ -86,6 +86,7 @@ export const DEFAULT_ZOOM = 1.6;
 export const CAMERA_SPEED = 1650;
 
 export const UNIT_RADIUS = 14;
+export const ATTACK_RANGE = UNIT_RADIUS * 2 + 12;
 export const UNIT_SPEED = 150;
 export const EDGE_PADDING = 8;
 
@@ -105,6 +106,35 @@ export const UNIT_STATS = {
   strength: 10,
   speed: UNIT_SPEED,
   attackSpeed: 1,
+};
+
+export const UNIT_TYPES = {
+  SWORDSMAN: {
+    type: 'swordsman',
+    label: 'Мечник',
+    hp: 120,
+    strength: 20,
+    speed: UNIT_SPEED,
+    attackSpeed: 1,
+  },
+
+  ARCHER: {
+    type: 'archer',
+    label: 'Лучник',
+    hp: 80,
+    strength: 12,
+    speed: UNIT_SPEED,
+    attackSpeed: 0.7,
+  },
+
+  HEAVY: {
+    type: 'heavy',
+    label: 'Тяжёлый боец',
+    hp: 200,
+    strength: 40,
+    speed: UNIT_SPEED,
+    attackSpeed: 0.5,
+  },
 };
 
 // Здания квадратные NxN: size — сторона в клетках сетки, hp — очки жизни
@@ -133,6 +163,7 @@ export const BUILD_ICON_TILE = 12;
 export const EVENT_TYPE = {
   SELECT_UNITS: "SELECT_UNITS",
   MOVE_UNITS: "MOVE_UNITS",
+  ATTACK_TARGET: "ATTACK_TARGET",
   ZOOM_CAMERA: "ZOOM_CAMERA",
   BUILD_BUILDING: "BUILD_BUILDING",
   SELECT_BUILDING: "SELECT_BUILDING",
