@@ -1,13 +1,18 @@
 import {
   UNIT_STATS,
   UNIT_RADIUS,
+  ATTACK_RANGE,
+  UNIT_TYPES,
   MAP_SIZE,
   EDGE_PADDING,
   GRID_STEP,
   BUILDING_TYPES,
   groupById,
-} from "@/config/game";
-import { useIsoMath } from "@/composables/useIsoMath";
+  MOVEMENT_TYPES,
+} from '@/config/game';
+import { getTerrainAt } from '@/utils/terrain';
+import { buildPath, buildAttackPath } from '@/utils/pathfinding';
+import { useIsoMath } from '@/composables/useIsoMath';
 
 const { worldToScreen } = useIsoMath();
 
@@ -19,7 +24,13 @@ const buildingType = (type) => BUILDING_TYPES.find((b) => b.type === type);
 let nextUnitId = 1;
 let nextBuildingId = 1;
 
-const unit = (tileX, tileY, group = "group1") => ({
+const unit = (
+  tileX,
+  tileY,
+  group = "group1",
+  movementType = MOVEMENT_TYPES.LAND,
+  unitType = UNIT_TYPES.SWORDSMAN
+) => ({
   id: nextUnitId++,
   position: { x: tileX * GRID_STEP, y: tileY * GRID_STEP },
   target: null,
@@ -27,18 +38,28 @@ const unit = (tileX, tileY, group = "group1") => ({
   pathIndex: 0,
   targetQueue: [],
   group,
+  movementType,
   ...UNIT_STATS,
-  maxHp: UNIT_STATS.hp,
+  ...unitType,
+  maxHp: unitType.hp,
   damagedAt: null,
   screen: { x: 0, y: 0 },
 });
 
-const buildingSize = (size) => size * GRID_STEP;
-const snapToGrid = (world, size) => ({
-  x: (Math.floor(world.x / GRID_STEP) + size / 2) * GRID_STEP,
-  y: (Math.floor(world.y / GRID_STEP) + size / 2) * GRID_STEP,
+const getBuildingDimensions = (type) => ({
+  width: (type.width ?? type.size) * GRID_STEP,
+  height: (type.height ?? type.size) * GRID_STEP,
 });
 
+const snapToGrid = (world, type) => {
+  const width = type.width ?? type.size;
+  const height = type.height ?? type.size;
+
+  return {
+    x: (Math.floor(world.x / GRID_STEP) + width / 2) * GRID_STEP,
+    y: (Math.floor(world.y / GRID_STEP) + height / 2) * GRID_STEP,
+  };
+};
 const computeFormationSlots = (center, count) => {
   const SPACING = UNIT_RADIUS * 2 + 6;
   if (count === 1) return [{ x: center.x, y: center.y }];
@@ -56,12 +77,40 @@ const computeFormationSlots = (center, count) => {
   return slots;
 };
 
-const aabb = (b) => ({
-  left: b.position.x - b.size / 2,
-  right: b.position.x + b.size / 2,
-  top: b.position.y - b.size / 2,
-  bottom: b.position.y + b.size / 2,
-});
+const aabb = (b) => {
+  const width = b.width ?? b.size;
+  const height = b.height ?? b.size;
+
+  return {
+    left: b.position.x - width / 2,
+    right: b.position.x + width / 2,
+    top: b.position.y - height / 2,
+    bottom: b.position.y + height / 2,
+  };
+};
+
+const BRIDGE_START = { x: -178, y: -170 };
+const BRIDGE_END = { x: 83, y: -172 };
+const BRIDGE_WIDTH = 23;
+
+const isBridgeAt = (x, y) => {
+  const dx = BRIDGE_END.x - BRIDGE_START.x;
+  const dy = BRIDGE_END.y - BRIDGE_START.y;
+
+  const t = Math.max(
+    0,
+    Math.min(
+      1,
+      ((x - BRIDGE_START.x) * dx + (y - BRIDGE_START.y) * dy) /
+        (dx * dx + dy * dy),
+    ),
+  );
+
+  const nearestX = BRIDGE_START.x + t * dx;
+  const nearestY = BRIDGE_START.y + t * dy;
+
+  return Math.hypot(x - nearestX, y - nearestY) <= BRIDGE_WIDTH;
+};
 
 const collidesWithBuildings = (x, y, r, buildings) => {
   return buildings.some((b) => {
@@ -73,7 +122,17 @@ const collidesWithBuildings = (x, y, r, buildings) => {
     return dx * dx + dy * dy < r * r;
   });
 };
-
+const hasLineOfSight = (x1, y1, x2, y2, buildings, radius) => {
+  const dist = Math.hypot(x2 - x1, y2 - y1);
+  const steps = Math.max(1, Math.ceil(dist / (radius / 2)));
+  for (let i = 1; i < steps; i++) {
+    const t = i / steps;
+    const x = x1 + (x2 - x1) * t;
+    const y = y1 + (y2 - y1) * t;
+    if (collidesWithBuildings(x, y, radius, buildings)) return false;
+  }
+  return true;
+};
 const resolveCollisions = (x, y, r, buildings) => {
   let position = { x, y };
   buildings.forEach((b) => {
@@ -102,159 +161,7 @@ const resolveCollisions = (x, y, r, buildings) => {
   return position;
 };
 
-const hasLineOfSight = (x1, y1, x2, y2, buildings, radius) => {
-  const dist = Math.hypot(x2 - x1, y2 - y1);
-  const steps = Math.max(1, Math.ceil(dist / (radius / 2)));
-  for (let i = 1; i < steps; i++) {
-    const t = i / steps;
-    const x = x1 + (x2 - x1) * t;
-    const y = y1 + (y2 - y1) * t;
-    if (collidesWithBuildings(x, y, radius, buildings)) return false;
-  }
-  return true;
-};
 
-const CELL = UNIT_RADIUS;
-const GRID_LIMIT = Math.floor((MAP_SIZE / 2 - UNIT_RADIUS) / CELL);
-
-const cellBlocked = (cx, cy, buildings) => {
-  if (Math.abs(cx) > GRID_LIMIT || Math.abs(cy) > GRID_LIMIT) return true;
-  const wx = cx * CELL;
-  const wy = cy * CELL;
-  return buildings.some((b) => {
-    const h = b.size / 2 + UNIT_RADIUS;
-    return (
-      wx >= b.position.x - h &&
-      wx <= b.position.x + h &&
-      wy >= b.position.y - h &&
-      wy <= b.position.y + h
-    );
-  });
-};
-
-const nearestFreeCell = (cx, cy, buildings) => {
-  if (!cellBlocked(cx, cy, buildings)) return { x: cx, y: cy };
-  for (let r = 1; r <= 6; r++) {
-    for (let dx = -r; dx <= r; dx++) {
-      for (let dy = -r; dy <= r; dy++) {
-        if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
-        if (!cellBlocked(cx + dx, cy + dy, buildings))
-          return { x: cx + dx, y: cy + dy };
-      }
-    }
-  }
-  return null;
-};
-
-const astar = (sx, sy, ex, ey, buildings) => {
-  const sc = nearestFreeCell(
-    Math.round(sx / CELL),
-    Math.round(sy / CELL),
-    buildings,
-  );
-  const ec = nearestFreeCell(
-    Math.round(ex / CELL),
-    Math.round(ey / CELL),
-    buildings,
-  );
-  if (!sc || !ec) return null;
-  if (sc.x === ec.x && sc.y === ec.y) return [{ x: ex, y: ey }];
-
-  const key = (x, y) => x + "," + y;
-  const open = [{ x: sc.x, y: sc.y, f: 0 }];
-  const came = new Map();
-  const g = new Map([[key(sc.x, sc.y), 0]]);
-  const dirs = [
-    [0, -1, 1],
-    [0, 1, 1],
-    [-1, 0, 1],
-    [1, 0, 1],
-    [-1, -1, 1.414],
-    [1, -1, 1.414],
-    [-1, 1, 1.414],
-    [1, 1, 1.414],
-  ];
-
-  let iter = 0;
-  while (open.length && iter < 20000) {
-    iter++;
-    let bi = 0;
-    for (let i = 1; i < open.length; i++) if (open[i].f < open[bi].f) bi = i;
-    const cur = open.splice(bi, 1)[0];
-
-    if (cur.x === ec.x && cur.y === ec.y) {
-      const raw = [];
-      let ck = key(cur.x, cur.y);
-      let node = { x: cur.x, y: cur.y };
-      while (came.has(ck)) {
-        raw.unshift({ x: node.x * CELL, y: node.y * CELL });
-        node = came.get(ck);
-        ck = key(node.x, node.y);
-      }
-      raw.push({ x: ex, y: ey });
-      return raw;
-    }
-
-    for (const [dx, dy, cost] of dirs) {
-      const nx = cur.x + dx,
-        ny = cur.y + dy;
-      if (cellBlocked(nx, ny, buildings)) continue;
-      if (dx !== 0 && dy !== 0) {
-        if (
-          cellBlocked(cur.x + dx, cur.y, buildings) ||
-          cellBlocked(cur.x, cur.y + dy, buildings)
-        )
-          continue;
-      }
-      const nk = key(nx, ny);
-      const tg = (g.get(key(cur.x, cur.y)) || 0) + cost;
-      if (tg < (g.has(nk) ? g.get(nk) : Infinity)) {
-        came.set(nk, { x: cur.x, y: cur.y });
-        g.set(nk, tg);
-        const h = Math.hypot(ec.x - nx, ec.y - ny);
-        open.push({ x: nx, y: ny, f: tg + h });
-      }
-    }
-  }
-  return null;
-};
-
-const smoothPath = (start, raw, buildings, radius) => {
-  if (!raw || raw.length === 0) return [];
-  const points = [start, ...raw];
-  const result = [];
-  let anchor = 0;
-  while (anchor < points.length - 1) {
-    let far = anchor + 1;
-    for (let j = points.length - 1; j > anchor + 1; j--) {
-      if (
-        hasLineOfSight(
-          points[anchor].x,
-          points[anchor].y,
-          points[j].x,
-          points[j].y,
-          buildings,
-          radius,
-        )
-      ) {
-        far = j;
-        break;
-      }
-    }
-    result.push(points[far]);
-    anchor = far;
-  }
-  return result;
-};
-
-const buildPath = (start, target, buildings, radius) => {
-  if (hasLineOfSight(start.x, start.y, target.x, target.y, buildings, radius)) {
-    return [{ x: target.x, y: target.y }];
-  }
-  const raw = astar(start.x, start.y, target.x, target.y, buildings);
-  if (!raw) return [{ x: target.x, y: target.y }];
-  return smoothPath(start, raw, buildings, radius);
-};
 
 const findSpawnPosition = (building, buildings, units) => {
   const half = building.size / 2;
@@ -326,12 +233,14 @@ export default {
   getters: {
     getUnitById: (state) => (id) => state.units.find((u) => u.id === id),
     getBuildings: (state) => state.buildings,
+    getTerrainAt: () => ({ x, y }) => getTerrainAt(x, y),
 
     getStats: (state) => (unitIds) => {
       const units = state.units.filter((u) => unitIds.includes(u.id));
       if (units.length === 0) return [];
       return units.map((u) => [
         { label: "Группа", value: groupById(u.group).label },
+        { label: "Тип", value: u.label },
         { label: "Здоровье", value: `${u.hp} / ${u.maxHp}` },
         { label: "Сила", value: u.strength },
         { label: "Скорость", value: u.speed },
@@ -348,25 +257,54 @@ export default {
       ];
     },
 
-    canPlace: (state) => (world, size) => {
-      const c = snapToGrid(world, size);
-      const half = buildingSize(size) / 2;
+    canPlace: (state) => (world, type) => {
+      const c = snapToGrid(world, type);
+
+      const { width, height } = getBuildingDimensions(type);
+      const halfWidth = width / 2;
+      const halfHeight = height / 2;
+
       const box = {
-        left: c.x - half,
-        right: c.x + half,
-        top: c.y - half,
-        bottom: c.y + half,
+        left: c.x - halfWidth,
+        right: c.x + halfWidth,
+        top: c.y - halfHeight,
+        bottom: c.y + halfHeight,
       };
+
       const limit = MAP_SIZE / 2;
+
+      // Проверка границ карты
       if (
         box.left < -limit ||
         box.right > limit ||
         box.top < -limit ||
         box.bottom > limit
-      )
+      ) {
         return false;
+      }
+
+      // Проверка всей площади постройки
+      const step = 8;
+      const stepsX = Math.max(1, Math.ceil(width / step));
+      const stepsY = Math.max(1, Math.ceil(height / step));
+
+      for (let i = 0; i <= stepsX; i++) {
+        for (let j = 0; j <= stepsY; j++) {
+          const x = box.left + (width * i) / stepsX;
+          const y = box.top + (height * j) / stepsY;
+
+          const terrain = getTerrainAt(x, y);
+
+          if (terrain !== type.terrain || isBridgeAt(x, y)) {
+            return false;
+          }
+        }
+      }
+
+      // Проверка столкновений с другими постройками
       return !state.buildings.some((b) => {
         const a = aabb(b);
+
         return (
           box.left < a.right &&
           box.right > a.left &&
@@ -378,11 +316,15 @@ export default {
 
     getGhost: (state, getters) => (world, type) => {
       if (!world || !type) return null;
-      const c = snapToGrid(world, type.size);
+
+      const c = snapToGrid(world, type);
+      const { width, height } = getBuildingDimensions(type);
+
       return {
         ...c,
-        size: buildingSize(type.size),
-        valid: getters.canPlace(world, type.size),
+        width,
+        height,
+        valid: getters.canPlace(world, type),
       };
     },
 
@@ -476,6 +418,43 @@ export default {
   },
 
   mutations: {
+    SET_ATTACK_TARGET: (state, { unitIds, targetId, targetType }) => {
+  unitIds.forEach((id) => {
+    const u = state.units.find((unit) => unit.id === id);
+    if (!u) return;
+
+    u.attackTarget = { id: targetId, type: targetType };
+    u.attackTimer = 0;
+    u.target = null;
+    u.path = [];
+    u.pathIndex = 0;
+    u.targetQueue = [];
+  });
+},
+APPLY_DAMAGE: (state, { id, amount, time }) => {
+  const target =
+    state.units.find((u) => u.id === id) ||
+    state.buildings.find((b) => b.id === id);
+
+  if (!target) return;
+
+  target.hp = Math.max(0, target.hp - amount);
+  target.damagedAt = time;
+},
+REMOVE_DESTROYED: (state) => {
+  const aliveUnits = state.units.filter((unit) => unit.hp > 0);
+  const aliveBuildings = state.buildings.filter(
+    (building) => building.hp > 0
+  );
+
+  if (aliveUnits.length !== state.units.length) {
+    state.units = aliveUnits;
+  }
+
+  if (aliveBuildings.length !== state.buildings.length) {
+    state.buildings = aliveBuildings;
+  }
+},
     SET_TARGET: (state, { id, target }) => {
       const u = state.units.find((u) => u.id === id);
       if (!u) return;
@@ -486,6 +465,8 @@ export default {
         u.targetQueue = [];
         return;
       }
+      u.attackTarget = null;
+u.attackTimer = 0;
       let t = { x: clamp(target.x), y: clamp(target.y) };
 
       // Если точка внутри здания — выталкиваем её на границу
@@ -496,7 +477,7 @@ export default {
 
       u.target = t;
       u.targetQueue = [];
-      u.path = buildPath(u.position, t, state.buildings, UNIT_RADIUS);
+      u.path = buildPath(u.position, t, state.buildings, UNIT_RADIUS, u.movementType);
       u.pathIndex = 0;
     },
 
@@ -521,6 +502,7 @@ export default {
           nextTarget,
           state.buildings,
           UNIT_RADIUS,
+          u.movementType
         );
         u.pathIndex = 0;
       }
@@ -544,16 +526,20 @@ export default {
       if (b) b.screen = screen;
     },
 
-    ADD_BUILDING: (state, { type, size, position, group = "group1" }) => {
-      const { hp } = buildingType(type);
+    ADD_BUILDING: (state, { type, size, width, height, position, group = "group1" }) => {
+      const definition = buildingType(type);
+      if (!definition) return;
+
       state.buildings.push({
         id: "b" + nextBuildingId++,
         type,
         position,
         group,
-        size: buildingSize(size),
-        hp,
-        maxHp: hp,
+        size: size ? size * GRID_STEP : undefined,
+        width: width ? width * GRID_STEP : undefined,
+        height: height ? height * GRID_STEP : undefined,
+        hp: definition.hp,
+        maxHp: definition.hp,
         damagedAt: null,
         screen: { x: 0, y: 0 },
       });
@@ -568,8 +554,16 @@ export default {
       target.damagedAt = time;
     },
 
-    ADD_UNIT: (state, { position, group }) => {
-      const newUnit = unit(0, 0, group);
+    ADD_UNIT: (
+      state,
+      {
+        position,
+        group,
+        movementType = MOVEMENT_TYPES.LAND,
+        unitType = UNIT_TYPES.SWORDSMAN,
+      }
+    ) => {
+      const newUnit = unit(0, 0, group, movementType, unitType);
       newUnit.position = position;
       state.units.push(newUnit);
     },
@@ -603,13 +597,15 @@ export default {
       commit("CLEAR_MAP");
 
       // Создаём юнитов с новыми ID.
-      scenario.units.forEach(([x, y, group]) => {
+      scenario.units.forEach(([x, y, group, movementType, unitType]) => {
+        const selectedUnitType = unitType
+        ? Object.values(UNIT_TYPES).find((item) => item.type === unitType)
+        : UNIT_TYPES.SWORDSMAN;
         commit("ADD_UNIT", {
-          position: {
-            x: x * GRID_STEP,
-            y: y * GRID_STEP,
-          },
+          position: { x: x * GRID_STEP, y: y * GRID_STEP },
           group,
+          movementType,
+          unitType: selectedUnitType,
         });
       });
 
@@ -623,12 +619,14 @@ export default {
             x: x * GRID_STEP,
             y: y * GRID_STEP,
           },
-          definition.size,
+          definition,
         );
 
         commit("ADD_BUILDING", {
           type,
           size: definition.size,
+          width: definition.width,
+          height: definition.height,
           group,
           position,
         });
@@ -638,12 +636,95 @@ export default {
     moveUnits: ({ state, commit }, dt) => {
       const R = UNIT_RADIUS;
       const B = state.buildings;
+const getAttackTarget = (u) => {
+  if (!u.attackTarget) return null;
 
-      state.units.forEach((u) => {
-        if (!u.target) return;
+  if (u.attackTarget.type === "unit") {
+    return state.units.find(
+      (target) => target.id === u.attackTarget.id
+    );
+  }
+
+  return state.buildings.find(
+    (target) => target.id === u.attackTarget.id
+  );
+};
+state.units.forEach((u) => {
+  if (u.attackTarget) {
+    const target = getAttackTarget(u);
+
+    if (!target || target.hp <= 0) {
+      u.attackTarget = null;
+      u.attackTimer = 0;
+      u.target = null;
+      u.path = [];
+      u.pathIndex = 0;
+      u.targetQueue = [];
+      return;
+    }
+    const targetWidth =
+  u.attackTarget.type === "unit"
+    ? UNIT_RADIUS * 2
+    : target.width ?? target.size;
+
+const targetHeight =
+  u.attackTarget.type === "unit"
+    ? UNIT_RADIUS * 2
+    : target.height ?? target.size;
+
+const dx = Math.max(
+  Math.abs(u.position.x - target.position.x) - targetWidth / 2,
+  0
+);
+
+const dy = Math.max(
+  Math.abs(u.position.y - target.position.y) - targetHeight / 2,
+  0
+);
+
+const distance = Math.hypot(dx, dy);
+if (distance <= ATTACK_RANGE) {
+  u.target = null;
+  u.path = [];
+  u.pathIndex = 0;
+u.attackTimer = (u.attackTimer || 0) + dt;
+
+const attackInterval = 1 / u.attackSpeed;
+
+if (u.attackTimer >= attackInterval) {
+  commit("APPLY_DAMAGE", {
+    id: target.id,
+    amount: u.strength,
+    time: Date.now(),
+  });
+
+  u.attackTimer -= attackInterval;
+}
+
+return;
+}
+if (!u.target || !u.path || u.path.length === 0) {
+  u.path = buildAttackPath(
+    u.position,
+    target,
+    state.buildings,
+    u.movementType,
+    u.attackTarget.type
+  );
+
+  u.pathIndex = 0;
+  u.target = u.path.length > 0
+    ? u.path[u.path.length - 1]
+    : null;
+}
+  }
+
+  if (!u.target) return;
         if (!u.path || u.path.length === 0) {
-          u.path = [{ x: u.target.x, y: u.target.y }];
+          u.target = null;
           u.pathIndex = 0;
+          u.targetQueue = [];
+          return;
         }
 
         let budget = u.speed * dt;
@@ -679,6 +760,7 @@ export default {
               nextTarget,
               state.buildings,
               UNIT_RADIUS,
+              u.movementType
             );
             u.pathIndex = 0;
             u.target = nextTarget;
@@ -687,6 +769,7 @@ export default {
           }
         }
       });
+      commit("REMOVE_DESTROYED");
     },
 
     spawnUnit: ({ state, commit }, buildingId) => {

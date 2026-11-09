@@ -3,6 +3,9 @@
     <div class="game-world__outer-ground"></div>
     <div class="game-world__ground" :style="groundStyle"></div>
 
+<TerrainLayer />
+
+
     <div
       v-for="unit in unitsWithTarget"
       :key="'p' + unit.id"
@@ -17,17 +20,29 @@
       :style="ghostStyle"
     ></div>
 
-    <BuildingItem
-      v-for="b in buildings"
-      :key="b.id"
-      :building="b"
-    />
+    <!-- Здания -->
+<BuildingItem
+  v-for="b in buildings"
+  :key="b.id"
+  :building="b"
+/>
 
-    <UnitItem
-      v-for="unit in units"
-      :key="unit.id"
-      :unit="unit"
-    />
+<!-- Водные юниты: под мостом -->
+<UnitItem
+  v-for="unit in waterUnits"
+  :key="unit.id"
+  :unit="unit"
+/>
+
+<!-- Верхняя часть моста -->
+<BridgeTopLayer />
+
+<!-- Наземные юниты: поверх моста -->
+<UnitItem
+  v-for="unit in landUnits"
+  :key="unit.id"
+  :unit="unit"
+/>
   </div>
 </template>
 
@@ -39,12 +54,19 @@ import BuildingItem from './BuildingItem.vue';
 import {
   GRID_STEP, MAP_SIZE, ISO_ROTATION_DEG, ISO_SCALE_Y, Z_INDEX
 } from '@/config/game';
-
+import TerrainLayer from './terrain/TerrainLayer.vue';
+import BridgeTopLayer from '@/components/game/terrain/BridgeTopLayer.vue';
 const store = useStore();
 const units = computed(() => store.state.map.units);
 const buildings = computed(() => store.state.map.buildings);
 const unitsWithTarget = computed(() => units.value.filter((u) => u.target));
+const waterUnits = computed(() =>
+  units.value.filter(unit => unit.movementType === 'water')
+);
 
+const landUnits = computed(() =>
+  units.value.filter(unit => unit.movementType !== 'water')
+);
 const worldStyle = computed(() => {
   const { viewport, camera } = store.state.game;
   const cx = viewport.width / 2;
@@ -73,20 +95,33 @@ const pathStyle = computed(() => store.getters['map/getPathStyle']);
 const ghost = computed(() => {
   const type = store.state.game.buildType;
   if (!type) return null;
-  return store.getters['map/getGhost'](store.getters['game/getCursorWorld'], type);
-});
 
+  const horizontal =
+    type.type === 'ship' &&
+    store.state.game.buildOrientation === 'horizontal';
+
+  const orientedType = horizontal
+    ? { ...type, width: type.height, height: type.width }
+    : type;
+
+  return store.getters['map/getGhost'](
+    store.getters['game/getCursorWorld'],
+    orientedType
+  );
+});
 const ghostStyle = computed(() => {
   const g = ghost.value;
   if (!g) return {};
+
   return {
-    left: `${g.x - g.size / 2}px`,
-    top: `${g.y - g.size / 2}px`,
-    width: `${g.size}px`,
-    height: `${g.size}px`,
+    left: `${g.x - g.width / 2}px`,
+    top: `${g.y - g.height / 2}px`,
+    width: `${g.width}px`,
+    height: `${g.height}px`,
     zIndex: Z_INDEX.GHOST
   };
 });
+
 </script>
 
 <style scoped lang="scss">
@@ -110,16 +145,27 @@ const ghostStyle = computed(() => {
   pointer-events: none;
 }
 
+
 .game-world__ground {
   position: absolute;
-  background-color: #3a3a3a;
+  background-color: #557747;
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.32) 2px, transparent 2px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.32) 2px, transparent 2px);
+    radial-gradient(ellipse at 20% 30%, rgba(139, 160, 91, 0.28) 0%, transparent 38%),
+    radial-gradient(ellipse at 75% 65%, rgba(35, 83, 43, 0.25) 0%, transparent 42%),
+    radial-gradient(ellipse at 45% 85%, rgba(173, 157, 94, 0.16) 0%, transparent 35%),
+    repeating-radial-gradient(
+      circle at 30% 40%,
+      rgba(255, 255, 255, 0.025) 0px,
+      rgba(255, 255, 255, 0.025) 2px,
+      transparent 3px,
+      transparent 7px
+    );
   border: 1px solid rgba(0, 0, 0, 0.6);
   box-sizing: border-box;
   pointer-events: none;
 }
+
+
 
 .game-world__path-line {
   position: absolute;

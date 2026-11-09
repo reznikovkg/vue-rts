@@ -51,6 +51,7 @@ export default {
     // Строительство: выбранный тип здания, группа постройки и последняя экранная точка курсора
     buildType: null,
     buildGroup: GROUP_LIST[0].id,
+    buildOrientation: 'vertical',
     cursor: null,
     // Последний пересчитанный кадр: dt — длительность, time — накопленное игровое время
     frame: { dt: 0, time: 0 },
@@ -112,6 +113,9 @@ export default {
     SET_BUILD_TYPE: (state, type) => {
       state.buildType = type;
     },
+    SET_BUILD_ORIENTATION: (state, orientation) => {
+      state.buildOrientation = orientation;
+    },
     SET_BUILD_GROUP: (state, group) => {
       state.buildGroup = group;
     },
@@ -159,6 +163,7 @@ export default {
       state.selectedBuildingId = null;
 
       state.buildType = null;
+      state.buildOrientation = 'vertical';
       state.buildGroup = GROUP_LIST[0].id;
       state.cursor = null;
 
@@ -213,6 +218,9 @@ export default {
 
     resetForScenario: ({ commit }) => {
       commit("RESET_FOR_SCENARIO");
+    },
+    setBuildOrientation: ({ commit }, orientation) => {
+      commit("SET_BUILD_ORIENTATION", orientation);
     },
 
     // Применение накопленных за кадр событий ввода: клавиши камеры

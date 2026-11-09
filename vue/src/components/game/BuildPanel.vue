@@ -26,6 +26,21 @@
       {{ type.label }}
       <span class="build-panel__size">{{ type.size }}x{{ type.size }}</span>
     </button>
+        <div v-if="buildType?.type === 'ship'" class="build-panel__orientation">
+      <button
+        :class="{ 'build-panel__orientation--active': buildOrientation === 'vertical' }"
+        @click.stop="store.dispatch('game/setBuildOrientation', 'vertical')"
+      >
+        1×2
+      </button>
+
+      <button
+        :class="{ 'build-panel__orientation--active': buildOrientation === 'horizontal' }"
+        @click.stop="store.dispatch('game/setBuildOrientation', 'horizontal')"
+      >
+        2×1
+      </button>
+    </div>
   </div>
 </template>
 
@@ -47,15 +62,26 @@ const style = { zIndex: Z_INDEX.BUILD_PANEL };
 
 // Группа, от имени которой ставится здание
 const buildGroup = computed(() => store.state.game.buildGroup);
+const buildType = computed(() => store.state.game.buildType);
+const buildOrientation = computed(() => store.state.game.buildOrientation);
 const groupColor = computed(() => groupById(buildGroup.value).color);
 
 const isActive = (type) => store.state.game.buildType === type;
 
-// Иконка — квадрат NxN клеток в масштабе панели, окрашен в цвет выбранной группы
-const itemStyle = (type) => ({
-  "--icon-size": `${type.size * BUILD_ICON_TILE}px`,
-  "--icon-color": groupColor.value,
-});
+const itemStyle = (type) => {
+  let width = type.width ?? type.size;
+  let height = type.height ?? type.size;
+
+  if (type.type === "ship" && buildOrientation.value === "horizontal") {
+    [width, height] = [height, width];
+  }
+
+  return {
+    "--icon-width": `${width * BUILD_ICON_TILE}px`,
+    "--icon-height": `${height * BUILD_ICON_TILE}px`,
+    "--icon-color": groupColor.value,
+  };
+};
 
 const onPick = (type) => store.dispatch("events/pickBuilding", type);
 </script>
@@ -122,8 +148,8 @@ const onPick = (type) => store.dispatch("events/pickBuilding", type);
 
   &::before {
     content: "";
-    width: var(--icon-size);
-    height: var(--icon-size);
+    width: var(--icon-width);
+    height: var(--icon-height);
     background: var(--icon-color);
     border: 1px solid #1a1a1a;
   }
@@ -142,5 +168,29 @@ const onPick = (type) => store.dispatch("events/pickBuilding", type);
   margin-left: auto;
   color: #909090;
   font-size: 0.85em;
+}
+.build-panel__orientation {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+
+  button {
+    flex: 1;
+    padding: 6px 12px;
+    border: 1px solid #3a3a3a;
+    border-radius: 6px;
+    background: #202020;
+    color: #e8e8e8;
+    cursor: pointer;
+
+    &:hover {
+      background: #2c2c2c;
+    }
+  }
+
+  .build-panel__orientation--active {
+    border-color: #a0d0ff;
+    background: #1b3550;
+  }
 }
 </style>
