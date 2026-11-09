@@ -21,11 +21,15 @@ const isSelected = computed(() => store.getters['game/isBuildingSelected'](props
 
 const style = computed(() => {
   const b = props.building;
+
+  const width = b.width ?? b.size;
+  const height = b.height ?? b.size;
+
   return {
-    left: `${b.position.x - b.size / 2}px`,
-    top:  `${b.position.y - b.size / 2}px`,
-    width:  `${b.size}px`,
-    height: `${b.size}px`,
+    left: `${b.position.x - width / 2}px`,
+    top: `${b.position.y - height / 2}px`,
+    width: `${width}px`,
+    height: `${height}px`,
     background: groupById(b.group).color
   };
 });

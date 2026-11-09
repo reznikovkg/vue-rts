@@ -10,7 +10,10 @@ export const TERRAIN_TYPES = {
   LAND: 'land',
   WATER: 'water'
 };
-
+export const MOVEMENT_TYPES = {
+  LAND: 'land',
+  WATER: 'water',
+};
 // Цвета местности
 export const TERRAIN_COLORS = {
   land: '#668b45',
@@ -105,10 +108,12 @@ export const UNIT_STATS = {
 };
 
 // Здания квадратные NxN: size — сторона в клетках сетки, hp — очки жизни
+// Здания и корабли
 export const BUILDING_TYPES = [
-  { type: "house", label: "Дом", size: 1, hp: 200 },
-  { type: "barrack", label: "Казарма", size: 2, hp: 400 },
-  { type: "fort", label: "Крепость", size: 3, hp: 800 },
+  { type: "house", label: "Дом", size: 1, hp: 200, terrain: TERRAIN_TYPES.LAND },
+  { type: "barrack", label: "Казарма", size: 2, hp: 400, terrain: TERRAIN_TYPES.LAND },
+  { type: "fort", label: "Крепость", size: 3, hp: 800, terrain: TERRAIN_TYPES.LAND },
+  { type: "ship", label: "Корабль", width: 1, height: 2, hp: 500, terrain: TERRAIN_TYPES.WATER, },
 ];
 
 // Полоска здоровья: толщина на экране и отступ над объектом

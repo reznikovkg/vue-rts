@@ -203,16 +203,16 @@
   />
 
 </g>
-<!-- Каменный мост -->
-<g class="stone-bridge">
+<!-- Нижняя часть моста: тень и основание -->
+<g class="stone-bridge-under">
   <!-- Переходы к берегам -->
-<path
-  d="M 542 550 L 558 550 M 787 548 L 803 548"
-  stroke="#77766d"
-  stroke-width="40"
-  stroke-linecap="butt"
-  opacity="0.8"
-/>
+  <path
+    d="M 542 550 L 558 550 M 787 548 L 803 548"
+    stroke="#77766d"
+    stroke-width="40"
+    stroke-linecap="butt"
+    opacity="0.8"
+  />
 
   <!-- Мягкая тень -->
   <path
@@ -230,24 +230,9 @@
     stroke-width="46"
     stroke-linecap="butt"
   />
-
-  <!-- Дорожное полотно -->
-  <path
-    d="M 550 550 L 795 548"
-    stroke="#b5aa91"
-    stroke-width="34"
-    stroke-linecap="butt"
-  />
-
-  <!-- Каменная кладка -->
-  <path
-    d="M 550 550 L 795 548"
-    stroke="#8f8878"
-    stroke-width="2"
-    stroke-dasharray="12 9"
-    fill="none"
-  />
 </g>
+
+
   </svg>
 </template>
 

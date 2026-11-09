@@ -6,6 +6,7 @@ import {
   GRID_STEP,
   BUILDING_TYPES,
   groupById,
+  MOVEMENT_TYPES,
 } from '@/config/game';
 import { getTerrainAt } from '@/utils/terrain';
 import { buildPath } from '@/utils/pathfinding';
@@ -21,7 +22,12 @@ const buildingType = (type) => BUILDING_TYPES.find((b) => b.type === type);
 let nextUnitId = 1;
 let nextBuildingId = 1;
 
-const unit = (tileX, tileY, group = "group1") => ({
+const unit = (
+  tileX,
+  tileY,
+  group = "group1",
+  movementType = MOVEMENT_TYPES.LAND
+) => ({
   id: nextUnitId++,
   position: { x: tileX * GRID_STEP, y: tileY * GRID_STEP },
   target: null,
@@ -29,18 +35,27 @@ const unit = (tileX, tileY, group = "group1") => ({
   pathIndex: 0,
   targetQueue: [],
   group,
+  movementType,
   ...UNIT_STATS,
   maxHp: UNIT_STATS.hp,
   damagedAt: null,
   screen: { x: 0, y: 0 },
 });
 
-const buildingSize = (size) => size * GRID_STEP;
-const snapToGrid = (world, size) => ({
-  x: (Math.floor(world.x / GRID_STEP) + size / 2) * GRID_STEP,
-  y: (Math.floor(world.y / GRID_STEP) + size / 2) * GRID_STEP,
+const getBuildingDimensions = (type) => ({
+  width: (type.width ?? type.size) * GRID_STEP,
+  height: (type.height ?? type.size) * GRID_STEP,
 });
 
+const snapToGrid = (world, type) => {
+  const width = type.width ?? type.size;
+  const height = type.height ?? type.size;
+
+  return {
+    x: (Math.floor(world.x / GRID_STEP) + width / 2) * GRID_STEP,
+    y: (Math.floor(world.y / GRID_STEP) + height / 2) * GRID_STEP,
+  };
+};
 const computeFormationSlots = (center, count) => {
   const SPACING = UNIT_RADIUS * 2 + 6;
   if (count === 1) return [{ x: center.x, y: center.y }];
@@ -58,12 +73,40 @@ const computeFormationSlots = (center, count) => {
   return slots;
 };
 
-const aabb = (b) => ({
-  left: b.position.x - b.size / 2,
-  right: b.position.x + b.size / 2,
-  top: b.position.y - b.size / 2,
-  bottom: b.position.y + b.size / 2,
-});
+const aabb = (b) => {
+  const width = b.width ?? b.size;
+  const height = b.height ?? b.size;
+
+  return {
+    left: b.position.x - width / 2,
+    right: b.position.x + width / 2,
+    top: b.position.y - height / 2,
+    bottom: b.position.y + height / 2,
+  };
+};
+
+const BRIDGE_START = { x: -178, y: -170 };
+const BRIDGE_END = { x: 83, y: -172 };
+const BRIDGE_WIDTH = 23;
+
+const isBridgeAt = (x, y) => {
+  const dx = BRIDGE_END.x - BRIDGE_START.x;
+  const dy = BRIDGE_END.y - BRIDGE_START.y;
+
+  const t = Math.max(
+    0,
+    Math.min(
+      1,
+      ((x - BRIDGE_START.x) * dx + (y - BRIDGE_START.y) * dy) /
+        (dx * dx + dy * dy),
+    ),
+  );
+
+  const nearestX = BRIDGE_START.x + t * dx;
+  const nearestY = BRIDGE_START.y + t * dy;
+
+  return Math.hypot(x - nearestX, y - nearestY) <= BRIDGE_WIDTH;
+};
 
 const collidesWithBuildings = (x, y, r, buildings) => {
   return buildings.some((b) => {
@@ -209,25 +252,54 @@ export default {
       ];
     },
 
-    canPlace: (state) => (world, size) => {
-      const c = snapToGrid(world, size);
-      const half = buildingSize(size) / 2;
+    canPlace: (state) => (world, type) => {
+      const c = snapToGrid(world, type);
+
+      const { width, height } = getBuildingDimensions(type);
+      const halfWidth = width / 2;
+      const halfHeight = height / 2;
+
       const box = {
-        left: c.x - half,
-        right: c.x + half,
-        top: c.y - half,
-        bottom: c.y + half,
+        left: c.x - halfWidth,
+        right: c.x + halfWidth,
+        top: c.y - halfHeight,
+        bottom: c.y + halfHeight,
       };
+
       const limit = MAP_SIZE / 2;
+
+      // Проверка границ карты
       if (
         box.left < -limit ||
         box.right > limit ||
         box.top < -limit ||
         box.bottom > limit
-      )
+      ) {
         return false;
+      }
+
+      // Проверка всей площади постройки
+      const step = 8;
+      const stepsX = Math.max(1, Math.ceil(width / step));
+      const stepsY = Math.max(1, Math.ceil(height / step));
+
+      for (let i = 0; i <= stepsX; i++) {
+        for (let j = 0; j <= stepsY; j++) {
+          const x = box.left + (width * i) / stepsX;
+          const y = box.top + (height * j) / stepsY;
+
+          const terrain = getTerrainAt(x, y);
+
+          if (terrain !== type.terrain || isBridgeAt(x, y)) {
+            return false;
+          }
+        }
+      }
+
+      // Проверка столкновений с другими постройками
       return !state.buildings.some((b) => {
         const a = aabb(b);
+
         return (
           box.left < a.right &&
           box.right > a.left &&
@@ -239,11 +311,15 @@ export default {
 
     getGhost: (state, getters) => (world, type) => {
       if (!world || !type) return null;
-      const c = snapToGrid(world, type.size);
+
+      const c = snapToGrid(world, type);
+      const { width, height } = getBuildingDimensions(type);
+
       return {
         ...c,
-        size: buildingSize(type.size),
-        valid: getters.canPlace(world, type.size),
+        width,
+        height,
+        valid: getters.canPlace(world, type),
       };
     },
 
@@ -357,7 +433,7 @@ export default {
 
       u.target = t;
       u.targetQueue = [];
-      u.path = buildPath(u.position, t, state.buildings, UNIT_RADIUS);
+      u.path = buildPath(u.position, t, state.buildings, UNIT_RADIUS, u.movementType);
       u.pathIndex = 0;
     },
 
@@ -382,6 +458,7 @@ export default {
           nextTarget,
           state.buildings,
           UNIT_RADIUS,
+          u.movementType
         );
         u.pathIndex = 0;
       }
@@ -405,16 +482,20 @@ export default {
       if (b) b.screen = screen;
     },
 
-    ADD_BUILDING: (state, { type, size, position, group = "group1" }) => {
-      const { hp } = buildingType(type);
+    ADD_BUILDING: (state, { type, size, width, height, position, group = "group1" }) => {
+      const definition = buildingType(type);
+      if (!definition) return;
+
       state.buildings.push({
         id: "b" + nextBuildingId++,
         type,
         position,
         group,
-        size: buildingSize(size),
-        hp,
-        maxHp: hp,
+        size: size ? size * GRID_STEP : undefined,
+        width: width ? width * GRID_STEP : undefined,
+        height: height ? height * GRID_STEP : undefined,
+        hp: definition.hp,
+        maxHp: definition.hp,
         damagedAt: null,
         screen: { x: 0, y: 0 },
       });
@@ -429,8 +510,8 @@ export default {
       target.damagedAt = time;
     },
 
-    ADD_UNIT: (state, { position, group }) => {
-      const newUnit = unit(0, 0, group);
+    ADD_UNIT: (state, { position, group, movementType = MOVEMENT_TYPES.LAND }) => {
+      const newUnit = unit(0, 0, group, movementType);
       newUnit.position = position;
       state.units.push(newUnit);
     },
@@ -464,13 +545,11 @@ export default {
       commit("CLEAR_MAP");
 
       // Создаём юнитов с новыми ID.
-      scenario.units.forEach(([x, y, group]) => {
+      scenario.units.forEach(([x, y, group, movementType]) => {
         commit("ADD_UNIT", {
-          position: {
-            x: x * GRID_STEP,
-            y: y * GRID_STEP,
-          },
+          position: { x: x * GRID_STEP, y: y * GRID_STEP },
           group,
+          movementType,
         });
       });
 
@@ -484,12 +563,14 @@ export default {
             x: x * GRID_STEP,
             y: y * GRID_STEP,
           },
-          definition.size,
+          definition,
         );
 
         commit("ADD_BUILDING", {
           type,
           size: definition.size,
+          width: definition.width,
+          height: definition.height,
           group,
           position,
         });
@@ -503,8 +584,10 @@ export default {
       state.units.forEach((u) => {
         if (!u.target) return;
         if (!u.path || u.path.length === 0) {
-          u.path = [{ x: u.target.x, y: u.target.y }];
+          u.target = null;
           u.pathIndex = 0;
+          u.targetQueue = [];
+          return;
         }
 
         let budget = u.speed * dt;
@@ -540,6 +623,7 @@ export default {
               nextTarget,
               state.buildings,
               UNIT_RADIUS,
+              u.movementType
             );
             u.pathIndex = 0;
             u.target = nextTarget;
