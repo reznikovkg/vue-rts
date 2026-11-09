@@ -3,6 +3,9 @@
     <div class="game-world__outer-ground"></div>
     <div class="game-world__ground" :style="groundStyle"></div>
 
+<TerrainLayer />
+
+
     <div
       v-for="unit in unitsWithTarget"
       :key="'p' + unit.id"
@@ -39,7 +42,7 @@ import BuildingItem from './BuildingItem.vue';
 import {
   GRID_STEP, MAP_SIZE, ISO_ROTATION_DEG, ISO_SCALE_Y, Z_INDEX
 } from '@/config/game';
-
+import TerrainLayer from './terrain/TerrainLayer.vue';
 const store = useStore();
 const units = computed(() => store.state.map.units);
 const buildings = computed(() => store.state.map.buildings);
@@ -110,16 +113,27 @@ const ghostStyle = computed(() => {
   pointer-events: none;
 }
 
+
 .game-world__ground {
   position: absolute;
-  background-color: #3a3a3a;
+  background-color: #557747;
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.32) 2px, transparent 2px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.32) 2px, transparent 2px);
+    radial-gradient(ellipse at 20% 30%, rgba(139, 160, 91, 0.28) 0%, transparent 38%),
+    radial-gradient(ellipse at 75% 65%, rgba(35, 83, 43, 0.25) 0%, transparent 42%),
+    radial-gradient(ellipse at 45% 85%, rgba(173, 157, 94, 0.16) 0%, transparent 35%),
+    repeating-radial-gradient(
+      circle at 30% 40%,
+      rgba(255, 255, 255, 0.025) 0px,
+      rgba(255, 255, 255, 0.025) 2px,
+      transparent 3px,
+      transparent 7px
+    );
   border: 1px solid rgba(0, 0, 0, 0.6);
   box-sizing: border-box;
   pointer-events: none;
 }
+
+
 
 .game-world__path-line {
   position: absolute;
