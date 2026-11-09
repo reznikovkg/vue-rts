@@ -30,9 +30,15 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
-import { useStore } from 'vuex';
-import { BUILDING_TYPES, BUILD_ICON_TILE, Z_INDEX, GROUP_LIST, groupById } from '@/config/game';
+import { computed } from "vue";
+import { useStore } from "vuex";
+import {
+  BUILDING_TYPES,
+  BUILD_ICON_TILE,
+  Z_INDEX,
+  GROUP_LIST,
+  groupById,
+} from "@/config/game";
 
 const store = useStore();
 const types = BUILDING_TYPES;
@@ -47,24 +53,25 @@ const isActive = (type) => store.state.game.buildType === type;
 
 // Иконка — квадрат NxN клеток в масштабе панели, окрашен в цвет выбранной группы
 const itemStyle = (type) => ({
-  '--icon-size': `${type.size * BUILD_ICON_TILE}px`,
-  '--icon-color': groupColor.value
+  "--icon-size": `${type.size * BUILD_ICON_TILE}px`,
+  "--icon-color": groupColor.value,
 });
 
-const onPick = (type) => store.dispatch('events/pickBuilding', type);
+const onPick = (type) => store.dispatch("events/pickBuilding", type);
 </script>
 
 <style scoped lang="scss">
 .build-panel {
   position: absolute;
   left: 24px;
-  top: 24px;
+  top: 90px;
   padding: 1vw 1vw 1.2vw;
   background: rgba(15, 15, 15, 0.82);
   color: #e8e8e8;
   border-radius: 10px;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 .build-panel__title {
@@ -114,7 +121,7 @@ const onPick = (type) => store.dispatch('events/pickBuilding', type);
   cursor: pointer;
 
   &::before {
-    content: '';
+    content: "";
     width: var(--icon-size);
     height: var(--icon-size);
     background: var(--icon-color);

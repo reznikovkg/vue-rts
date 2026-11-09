@@ -38,34 +38,162 @@
     <StatsPanel />
 
     <!-- Рамка выделения — рисуется поверх всего в экранных координатах -->
-    <div v-if="selectionRect" class="game-viewport__selection" :style="selectionStyle"></div>
+    <div
+      v-if="selectionRect"
+      class="game-viewport__selection"
+      :style="selectionStyle"
+    ></div>
+    <div class="game-viewport__topbar">
+      <div class="game-viewport__game-info">
+        <span class="game-viewport__game-title">
+          {{ currentScenario?.name || "RTS Simulator" }}
+        </span>
+      </div>
 
+      <div class="game-viewport__game-actions">
+        <button class="game-viewport__action" @click="togglePause">
+          {{ isPaused ? "Продолжить" : "Пауза" }}
+        </button>
+
+        <button class="game-viewport__action" @click="openScenarioMenu">
+          Новая игра
+        </button>
+      </div>
+    </div>
+    <div
+      v-if="showScenarioMenu"
+      class="game-viewport__overlay game-viewport__overlay--start"
+    >
+      <div class="game-viewport__menu">
+        <h2>Новая игра</h2>
+        <p>Выберите сценарий</p>
+
+        <select v-model="selectedScenarioId">
+          <option
+            v-for="scenario in SCENARIOS"
+            :key="scenario.id"
+            :value="scenario.id"
+          >
+            {{ scenario.name }}
+          </option>
+        </select>
+
+        <button
+          class="game-viewport__action game-viewport__action--primary"
+          @click="startScenario()"
+        >
+          Начать игру
+        </button>
+      </div>
+    </div>
+    <div v-if="isPaused && !showScenarioMenu" class="game-viewport__overlay">
+      <div class="game-viewport__menu">
+        <h2>Пауза</h2>
+
+        <button
+          class="game-viewport__action game-viewport__action--primary"
+          @click="resumeGame"
+        >
+          Продолжить
+        </button>
+
+        <button
+          class="game-viewport__action"
+          @click="startScenario(currentScenarioId)"
+        >
+          Перезапустить сценарий
+        </button>
+
+        <button class="game-viewport__action" @click="openScenarioMenu">
+          Выбрать сценарий
+        </button>
+      </div>
+    </div>
     <div class="game-viewport__controls" :style="controlsStyle">
-        <div class="game-viewport__row"><span class="game-viewport__key">↑ ↓ ← →</span><span class="game-viewport__desc">Камера</span></div>
-        <div class="game-viewport__row"><span class="game-viewport__key">Колесо</span><span class="game-viewport__desc">Зум</span></div>
-        <div class="game-viewport__row"><span class="game-viewport__key">ЛКМ</span><span class="game-viewport__desc">Выбрать юнита</span></div>
-        <div class="game-viewport__row"><span class="game-viewport__key">ЛКМ + drag</span><span class="game-viewport__desc">Выделить группу</span></div>
-        <div class="game-viewport__row"><span class="game-viewport__key">ПКМ</span><span class="game-viewport__desc">Отправить к цели</span></div>
+      <div class="game-viewport__row">
+        <span class="game-viewport__key">↑ ↓ ← →</span
+        ><span class="game-viewport__desc">Камера</span>
+      </div>
+      <div class="game-viewport__row">
+        <span class="game-viewport__key">Колесо</span
+        ><span class="game-viewport__desc">Зум</span>
+      </div>
+      <div class="game-viewport__row">
+        <span class="game-viewport__key">ЛКМ</span
+        ><span class="game-viewport__desc">Выбрать юнита</span>
+      </div>
+      <div class="game-viewport__row">
+        <span class="game-viewport__key">ЛКМ + drag</span
+        ><span class="game-viewport__desc">Выделить группу</span>
+      </div>
+      <div class="game-viewport__row">
+        <span class="game-viewport__key">ПКМ</span
+        ><span class="game-viewport__desc">Отправить к цели</span>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { useStore } from 'vuex';
-import GameWorld from './GameWorld.vue';
-import BuildPanel from './BuildPanel.vue';
-import StatsPanel from './StatsPanel.vue';
-import HealthBar from './HealthBar.vue';
-import { useGameLoop } from '@/composables/useGameLoop';
-import { Z_INDEX, HEALTH_BAR } from '@/config/game';
+import { ref, computed, onMounted, onUnmounted } from "vue";
+import { useStore } from "vuex";
+import GameWorld from "./GameWorld.vue";
+import BuildPanel from "./BuildPanel.vue";
+import StatsPanel from "./StatsPanel.vue";
+import HealthBar from "./HealthBar.vue";
+import { useGameLoop } from "@/composables/useGameLoop";
+import { Z_INDEX, HEALTH_BAR } from "@/config/game";
+import { SCENARIOS } from "@/config/scenarios";
 
 const store = useStore();
+const selectedScenarioId = ref(SCENARIOS[0].id);
+const currentScenarioId = ref(null);
+
+const showScenarioMenu = ref(true);
+const showPauseMenu = ref(false);
+
+const currentScenario = computed(() =>
+  SCENARIOS.find((item) => item.id === selectedScenarioId.value),
+);
+
+const startScenario = (scenarioId = selectedScenarioId.value) => {
+  const scenario = SCENARIOS.find((item) => item.id === scenarioId);
+
+  if (!scenario) return;
+
+  selectedScenarioId.value = scenario.id;
+  currentScenarioId.value = scenario.id;
+
+  store.dispatch("events/clearEvents");
+  store.dispatch("game/resetForScenario");
+  store.dispatch("map/loadScenario", scenario);
+
+  showScenarioMenu.value = false;
+  showPauseMenu.value = false;
+};
+
+const togglePause = () => {
+  store.dispatch("game/togglePause");
+};
+
+const openScenarioMenu = () => {
+  store.dispatch("game/setPaused", true);
+  showScenarioMenu.value = true;
+  showPauseMenu.value = false;
+};
+
+const resumeGame = () => {
+  store.dispatch("game/setPaused", false);
+  showPauseMenu.value = false;
+};
+
 const viewportRef = ref(null);
+
+const isPaused = computed(() => store.state.game.isPaused);
 
 // Пересчёт кадра целиком выполняется в сторе
 useGameLoop((dt) => {
-  store.dispatch('frame/run', dt);
+  store.dispatch("frame/run", dt);
 });
 
 const getScreenPoint = (event) => {
@@ -74,37 +202,50 @@ const getScreenPoint = (event) => {
 };
 
 // Ввод -> события кадра
-const onKeyDown = (event) => store.dispatch('events/keyDown', event.key);
-const onKeyUp = (event) => store.dispatch('events/keyUp', event.key);
+const getGameKey = (event) => {
+  if (event.code.startsWith("Key")) {
+    return event.code.slice(3).toLowerCase();
+  }
+
+  return event.key;
+};
+
+const onKeyDown = (event) => {
+  store.dispatch("events/keyDown", getGameKey(event));
+};
+
+const onKeyUp = (event) => {
+  store.dispatch("events/keyUp", getGameKey(event));
+};
 
 const onMouseDown = (event) => {
   if (event.button !== 0) return;
-  store.dispatch('events/startDrag', getScreenPoint(event));
+  store.dispatch("events/startDrag", getScreenPoint(event));
 };
 
 const onMouseMove = (event) => {
   const point = getScreenPoint(event);
-  store.dispatch('events/updateCursor', point);
-  store.dispatch('events/updateDrag', point);
+  store.dispatch("events/updateCursor", point);
+  store.dispatch("events/updateDrag", point);
 };
 
 // Отпускание ЛКМ завершает выделение; ПКМ и mouseleave выделение не трогают
 const onMouseUp = (event) => {
   if (event && event.button !== 0) return;
-  store.dispatch('events/endDrag');
+  store.dispatch("events/endDrag");
 };
 
 const onRightClick = (event) => {
-  store.dispatch('events/moveSelected', { 
+  store.dispatch("events/moveSelected", {
     cursor: getScreenPoint(event),
-    isShift: event.shiftKey
+    isShift: event.shiftKey,
   });
 };
 
 const onWheel = (event) => {
-  store.dispatch('events/wheel', {
+  store.dispatch("events/wheel", {
     cursor: getScreenPoint(event),
-    deltaY: event.deltaY
+    deltaY: event.deltaY,
   });
 };
 
@@ -118,7 +259,10 @@ const gameFrame = computed(() => store.state.game.frame);
 const isBarVisible = (object, isFocused) => {
   if (isFocused) return true;
   if (object.damagedAt === null) return false;
-  return (gameFrame.value.time - object.damagedAt) * 1000 < HEALTH_BAR.damageVisibleMs;
+  return (
+    (gameFrame.value.time - object.damagedAt) * 1000 <
+    HEALTH_BAR.damageVisibleMs
+  );
 };
 
 const focusedUnits = computed(() => {
@@ -130,31 +274,34 @@ const focusedBuildings = computed(() => {
   return buildings.value.filter((b) => isBarVisible(b, b.id === id));
 });
 
-const selectionRect = computed(() => store.getters['game/getSelectionRect']);
+const selectionRect = computed(() => store.getters["game/getSelectionRect"]);
 const selectionStyle = computed(() => ({
   left: `${selectionRect.value.x1}px`,
   top: `${selectionRect.value.y1}px`,
   width: `${selectionRect.value.x2 - selectionRect.value.x1}px`,
   height: `${selectionRect.value.y2 - selectionRect.value.y1}px`,
-  zIndex: Z_INDEX.SELECTION_RECT
+  zIndex: Z_INDEX.SELECTION_RECT,
 }));
 const controlsStyle = { zIndex: Z_INDEX.CONTROLS_PANEL };
 
 const updateViewport = () => {
   const rect = viewportRef.value.getBoundingClientRect();
-  store.dispatch('game/setViewport', { width: rect.width, height: rect.height });
+  store.dispatch("game/setViewport", {
+    width: rect.width,
+    height: rect.height,
+  });
 };
 
 onMounted(() => {
-  window.addEventListener('keydown', onKeyDown);
-  window.addEventListener('keyup', onKeyUp);
-  window.addEventListener('resize', updateViewport);
+  window.addEventListener("keydown", onKeyDown);
+  window.addEventListener("keyup", onKeyUp);
+  window.addEventListener("resize", updateViewport);
   updateViewport();
 });
 onUnmounted(() => {
-  window.removeEventListener('keydown', onKeyDown);
-  window.removeEventListener('keyup', onKeyUp);
-  window.removeEventListener('resize', updateViewport);
+  window.removeEventListener("keydown", onKeyDown);
+  window.removeEventListener("keyup", onKeyUp);
+  window.removeEventListener("resize", updateViewport);
 });
 </script>
 
@@ -166,7 +313,8 @@ onUnmounted(() => {
   background: #c0c0c0;
   user-select: none;
   cursor: crosshair;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 .game-viewport__selection {
@@ -178,7 +326,7 @@ onUnmounted(() => {
 
 .game-viewport__controls {
   position: absolute;
-  top: 24px;
+  top: 90px;
   right: 24px;
   padding: 1.2vw 1.6vw;
   background: rgba(15, 15, 15, 0.82);
@@ -205,5 +353,104 @@ onUnmounted(() => {
 
 .game-viewport__desc {
   color: #d0d0d0;
+}
+
+.game-viewport__topbar {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: rgba(15, 15, 15, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  color: #e8e8e8;
+  z-index: 100;
+}
+
+.game-viewport__game-title {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.game-viewport__game-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.game-viewport__action {
+  padding: 9px 14px;
+  border: 1px solid #555;
+  border-radius: 7px;
+  background: #252525;
+  color: #e8e8e8;
+  font-size: 14px;
+  cursor: pointer;
+
+  &:hover {
+    background: #414141;
+  }
+}
+
+.game-viewport__action--primary {
+  background: #315779;
+  border-color: #6b9bc8;
+
+  &:hover {
+    background: #3d719e;
+  }
+}
+
+.game-viewport__overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+}
+
+.game-viewport__menu {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: min(380px, calc(100% - 32px));
+  padding: 28px;
+  background: #202020;
+  border: 1px solid #555;
+  border-radius: 12px;
+  color: #e8e8e8;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+
+  h2 {
+    margin: 0;
+    font-size: 24px;
+  }
+
+  p {
+    margin: 0;
+    color: #aaa;
+  }
+
+  select {
+    width: 100%;
+    padding: 11px;
+    border: 1px solid #555;
+    border-radius: 7px;
+    background: #303030;
+    color: #eee;
+    font-size: 15px;
+  }
+}
+
+.game-viewport__overlay--start {
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 100px;
 }
 </style>
