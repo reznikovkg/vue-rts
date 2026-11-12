@@ -174,7 +174,7 @@ const squadHpPercent = computed(() =>
 const squadMetrics = computed(() =>
   squad.value
     ? [
-        { label: "Сила ", value: squad.value.totalStrength },
+        { label: "Сила", value: squad.value.totalStrength },
         { label: "Скорость", value: squad.value.speed },
         { label: "Атака", value: `${squad.value.attackSpeed}/с` },
       ]
@@ -242,114 +242,111 @@ const title = computed(() => {
   font-size: clamp(14px, 0.9vw, 22px);
   line-height: 1.45;
   pointer-events: none;
-  // Ширина и высота панели не зависят от количества выделенных юнитов:
-  // max-height — страховка, чтобы панель не уезжала за край экрана
   min-width: clamp(260px, 18vw, 460px);
   max-height: calc(100vh - 190px);
   overflow: hidden;
-}
 
-.stats-panel__title {
-  margin-bottom: 6px;
-  color: #a0d0ff;
-  font-weight: 600;
-}
-
-.stats-panel__body + .stats-panel__body {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid #3a3a3a;
-}
-
-.stats-panel__row {
-  display: flex;
-  justify-content: space-between;
-  gap: 1.5vw;
-  white-space: nowrap;
-}
-
-.stats-panel__label {
-  color: #d0d0d0;
-}
-
-.stats-panel__value {
-  color: #ffffff;
-  font-weight: 600;
-}
-
-.stats-panel__spawn {
-  margin-top: 12px;
-  padding: 8px 14px;
-  border: 1px solid #6b9bc8;
-  border-radius: 6px;
-  background: #315779;
-  color: white;
-  font-size: inherit;
-  font-weight: 600;
-  cursor: pointer;
-  pointer-events: auto;
-
-  &:hover {
-    background: #416f98;
+  &__title {
+    margin-bottom: 6px;
+    color: #a0d0ff;
+    font-weight: 600;
   }
 
-  &:active {
-    background: #254765;
+  &__body {
+    & + & {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid #3a3a3a;
+    }
   }
-}
 
-/* Полоска здоровья отряда и юнита в фокусе */
-.stats-panel__bar {
-  height: 6px;
-  margin: 4px 0 6px;
-  background: #c0392b;
-  border-radius: 3px;
-  overflow: hidden;
-}
+  &__row {
+    display: flex;
+    justify-content: space-between;
+    gap: 1.5vw;
+    white-space: nowrap;
+  }
 
-.stats-panel__bar-fill {
-  height: 100%;
-  background: #3ec46d;
-  transition: width 0.2s;
-}
+  &__label {
+    color: #d0d0d0;
+  }
 
-/* Метрики в одну строку — экономим высоту панели */
-.stats-panel__metrics {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0 1vw;
-  margin-top: 4px;
-}
+  &__value {
+    color: #ffffff;
+    font-weight: 600;
+  }
 
-.stats-panel__metric {
-  display: inline-flex;
-  gap: 0.4em;
-  white-space: nowrap;
-}
+  &__spawn {
+    margin-top: 12px;
+    padding: 8px 14px;
+    border: 1px solid #6b9bc8;
+    border-radius: 6px;
+    background: #315779;
+    color: white;
+    font-size: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    pointer-events: auto;
 
-.stats-panel__hint {
-  margin-top: 6px;
-  color: #8a8a8a;
-  font-size: 0.8em;
-}
+    &:hover {
+      background: #416f98;
+    }
 
-/* Юнит, выбранный внутри выделения клавишей Tab */
-.stats-panel__focus {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid #3a3a3a;
-}
+    &:active {
+      background: #254765;
+    }
+  }
 
-.stats-panel__focus-title {
-  display: flex;
-  justify-content: space-between;
-  gap: 1.5vw;
-  color: #a0d0ff;
-  font-weight: 600;
-}
+  &__bar {
+    height: 6px;
+    margin: 4px 0 6px;
+    background: #c0392b;
+    border-radius: 3px;
+    overflow: hidden;
+  }
 
-.stats-panel__focus-index {
-  color: #7aa8cc;
-  font-weight: 500;
+  &__bar-fill {
+    height: 100%;
+    background: #3ec46d;
+    transition: width 0.2s;
+  }
+
+  &__metrics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 1vw;
+    margin-top: 4px;
+  }
+
+  &__metric {
+    display: inline-flex;
+    gap: 0.4em;
+    white-space: nowrap;
+  }
+
+  &__hint {
+    margin-top: 6px;
+    color: #8a8a8a;
+    font-size: 0.8em;
+  }
+
+  &__focus {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #3a3a3a;
+  }
+
+  &__focus-title {
+    display: flex;
+    justify-content: space-between;
+    gap: 1.5vw;
+    color: #a0d0ff;
+    font-weight: 600;
+  }
+
+  &__focus-index {
+    color: #7aa8cc;
+    font-weight: 500;
+  }
 }
 </style>

@@ -26,16 +26,18 @@
       {{ type.label }}
       <span class="build-panel__size">{{ type.size }}x{{ type.size }}</span>
     </button>
-        <div v-if="buildType?.type === 'ship'" class="build-panel__orientation">
+    <div v-if="buildType?.type === 'ship'" class="build-panel__orientation">
       <button
-        :class="{ 'build-panel__orientation--active': buildOrientation === 'vertical' }"
+        class="build-panel__orientation-btn"
+        :class="{ 'build-panel__orientation-btn--active': buildOrientation === 'vertical' }"
         @click.stop="store.dispatch('game/setBuildOrientation', 'vertical')"
       >
         1×2
       </button>
 
       <button
-        :class="{ 'build-panel__orientation--active': buildOrientation === 'horizontal' }"
+        class="build-panel__orientation-btn"
+        :class="{ 'build-panel__orientation-btn--active': buildOrientation === 'horizontal' }"
         @click.stop="store.dispatch('game/setBuildOrientation', 'horizontal')"
       >
         2×1
@@ -98,99 +100,103 @@ const onPick = (type) => store.dispatch("events/pickBuilding", type);
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
   font-family:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-}
 
-.build-panel__title {
-  margin-bottom: 8px;
-  color: #a0d0ff;
-  font-size: clamp(14px, 0.9vw, 22px);
-  font-weight: 600;
-}
-
-.build-panel__groups {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 8px;
-}
-
-.build-panel__group {
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: 1px solid #1a1a1a;
-  border-radius: 50%;
-  cursor: pointer;
-  opacity: 0.45;
-
-  &:hover {
-    opacity: 0.8;
+  &__title {
+    margin-bottom: 8px;
+    color: #a0d0ff;
+    font-size: clamp(14px, 0.9vw, 22px);
+    font-weight: 600;
   }
 
-  &.build-panel__group--active {
-    opacity: 1;
-    box-shadow: 0 0 0 2px #a0d0ff;
+  &__groups {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
   }
-}
 
-.build-panel__item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  margin-bottom: 6px;
-  padding: 8px 12px;
-  border: 1px solid #3a3a3a;
-  border-radius: 8px;
-  background: #202020;
-  color: #e8e8e8;
-  font: inherit;
-  cursor: pointer;
-
-  &::before {
-    content: "";
-    width: var(--icon-width);
-    height: var(--icon-height);
-    background: var(--icon-color);
+  &__group {
+    width: 22px;
+    height: 22px;
+    padding: 0;
     border: 1px solid #1a1a1a;
+    border-radius: 50%;
+    cursor: pointer;
+    opacity: 0.45;
+
+    &:hover {
+      opacity: 0.8;
+    }
+
+    &--active,
+    &--active:hover {
+      opacity: 1;
+      box-shadow: 0 0 0 2px #a0d0ff;
+    }
   }
 
-  &:hover {
-    background: #2c2c2c;
-  }
-
-  &.build-panel__item--active {
-    border-color: #a0d0ff;
-    background: #1b3550;
-  }
-}
-
-.build-panel__size {
-  margin-left: auto;
-  color: #909090;
-  font-size: 0.85em;
-}
-.build-panel__orientation {
-  display: flex;
-  gap: 8px;
-  margin-top: 8px;
-
-  button {
-    flex: 1;
-    padding: 6px 12px;
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    margin-bottom: 6px;
+    padding: 8px 12px;
     border: 1px solid #3a3a3a;
-    border-radius: 6px;
+    border-radius: 8px;
     background: #202020;
     color: #e8e8e8;
+    font: inherit;
     cursor: pointer;
+
+    &::before {
+      content: "";
+      width: var(--icon-width);
+      height: var(--icon-height);
+      background: var(--icon-color);
+      border: 1px solid #1a1a1a;
+    }
 
     &:hover {
       background: #2c2c2c;
     }
+
+    &--active,
+    &--active:hover {
+      border-color: #a0d0ff;
+      background: #1b3550;
+    }
   }
 
-  .build-panel__orientation--active {
-    border-color: #a0d0ff;
-    background: #1b3550;
+  &__size {
+    margin-left: auto;
+    color: #909090;
+    font-size: 0.85em;
+  }
+
+  &__orientation {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+
+    &-btn {
+      flex: 1;
+      padding: 6px 12px;
+      border: 1px solid #3a3a3a;
+      border-radius: 6px;
+      background: #202020;
+      color: #e8e8e8;
+      cursor: pointer;
+
+      &:hover {
+        background: #2c2c2c;
+      }
+
+      &--active,
+      &--active:hover {
+        border-color: #a0d0ff;
+        background: #1b3550;
+      }
+    }
   }
 }
 </style>

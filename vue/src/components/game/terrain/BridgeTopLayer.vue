@@ -1,12 +1,12 @@
 <template>
   <svg
-    class="bridge-top"
+    class="bridge-top-layer"
     :width="MAP_SIZE"
     :height="MAP_SIZE"
     :viewBox="`0 0 ${MAP_SIZE} ${MAP_SIZE}`"
     overflow="hidden"
   >
-    <g class="stone-bridge-top">
+    <g class="bridge-top-layer__deck">
       <!-- Дорожное полотно -->
       <path
         d="M 550 550 L 795 548"
@@ -31,8 +31,8 @@
 import { MAP_SIZE } from '@/config/game';
 </script>
 
-<style scoped>
-.bridge-top {
+<style scoped lang="scss">
+.bridge-top-layer {
   position: absolute;
   left: -720px;
   top: -720px;

@@ -72,12 +72,16 @@ const snapToGrid = (world, type) => {
     y: (Math.floor(world.y / GRID_STEP) + height / 2) * GRID_STEP,
   };
 };
+
 const computeFormationSlots = (center, count) => {
   const SPACING = UNIT_RADIUS * 2 + 6;
+
   if (count === 1) return [{ x: center.x, y: center.y }];
+
   const side = Math.ceil(Math.sqrt(count));
   const offset = (side - 1) / 2;
   const slots = [];
+
   for (let i = 0; i < count; i++) {
     const row = Math.floor(i / side);
     const col = i % side;
@@ -86,6 +90,7 @@ const computeFormationSlots = (center, count) => {
       y: center.y + (row - offset) * SPACING,
     });
   }
+
   return slots;
 };
 
@@ -134,19 +139,25 @@ const collidesWithBuildings = (x, y, r, buildings) => {
     return dx * dx + dy * dy < r * r;
   });
 };
+
 const hasLineOfSight = (x1, y1, x2, y2, buildings, radius) => {
   const dist = Math.hypot(x2 - x1, y2 - y1);
   const steps = Math.max(1, Math.ceil(dist / (radius / 2)));
+
   for (let i = 1; i < steps; i++) {
     const t = i / steps;
     const x = x1 + (x2 - x1) * t;
     const y = y1 + (y2 - y1) * t;
+
     if (collidesWithBuildings(x, y, radius, buildings)) return false;
   }
+
   return true;
 };
+
 const resolveCollisions = (x, y, r, buildings) => {
   let position = { x, y };
+
   buildings.forEach((b) => {
     const a = aabb(b);
     const cx = Math.max(a.left, Math.min(position.x, a.right));
@@ -154,22 +165,27 @@ const resolveCollisions = (x, y, r, buildings) => {
     const dx = position.x - cx;
     const dy = position.y - cy;
     const d2 = dx * dx + dy * dy;
+
     if (d2 >= r * r) return;
+
     if (d2 > 0.0001) {
       const d = Math.sqrt(d2);
       position = { x: cx + (dx / d) * r, y: cy + (dy / d) * r };
       return;
     }
-    const dl = position.x - a.left,
-      dr = a.right - position.x;
-    const dt = position.y - a.top,
-      db = a.bottom - position.y;
+
+    const dl = position.x - a.left;
+    const dr = a.right - position.x;
+    const dt = position.y - a.top;
+    const db = a.bottom - position.y;
     const m = Math.min(dl, dr, dt, db);
+
     if (m === dl) position = { ...position, x: a.left - r };
     else if (m === dr) position = { ...position, x: a.right + r };
     else if (m === dt) position = { ...position, y: a.top - r };
     else position = { ...position, y: a.bottom + r };
   });
+
   return position;
 };
 
@@ -253,8 +269,6 @@ const attackSlotsOf = (units, targetId, excludeId) =>
     )
     .map((other) => other.attackSlot);
 
-
-
 const findSpawnPosition = (building, buildings, units) => {
   const half = building.size / 2;
   const distance = half + UNIT_RADIUS + 4;
@@ -302,22 +316,9 @@ export default {
 
   state: () => ({
     units: [
-      ...[
-        [-2, 3],
-        [4, 1],
-        [6, -4],
-      ].map(([x, y]) => unit(x, y, "group1")),
-      ...[
-        [-8, -6],
-        [-7, -5],
-        [-9, -5],
-      ].map(([x, y]) => unit(x, y, "group2")),
-      ...[
-        [8, 6],
-        [9, 5],
-        [7, 7],
-        [8, 7],
-      ].map(([x, y]) => unit(x, y, "group3")),
+      ...[[-2, 3], [4, 1], [6, -4]].map(([x, y]) => unit(x, y, "group1")),
+      ...[[-8, -6], [-7, -5], [-9, -5]].map(([x, y]) => unit(x, y, "group2")),
+      ...[[8, 6], [9, 5], [7, 7], [8, 7]].map(([x, y]) => unit(x, y, "group3")),
     ],
     buildings: [],
   }),
@@ -558,45 +559,48 @@ export default {
 
   mutations: {
     SET_ATTACK_TARGET: (state, { unitIds, targetId, targetType }) => {
-  unitIds.forEach((id) => {
-    const u = state.units.find((unit) => unit.id === id);
-    if (!u) return;
+      unitIds.forEach((id) => {
+        const u = state.units.find((unit) => unit.id === id);
+        if (!u) return;
 
-    u.attackTarget = { id: targetId, type: targetType };
-    u.attackTimer = 0;
-    // Сторона цели будет выбрана при первом поиске пути с учётом занятых сторон
-    u.attackSlot = null;
-    u.repathTimer = 0;
-    u.target = null;
-    u.path = [];
-    u.pathIndex = 0;
-    u.targetQueue = [];
-  });
-},
-APPLY_DAMAGE: (state, { id, amount, time }) => {
-  const target =
-    state.units.find((u) => u.id === id) ||
-    state.buildings.find((b) => b.id === id);
+        u.attackTarget = { id: targetId, type: targetType };
+        u.attackTimer = 0;
+        // Сторона цели будет выбрана при первом поиске пути с учётом занятых сторон
+        u.attackSlot = null;
+        u.repathTimer = 0;
+        u.target = null;
+        u.path = [];
+        u.pathIndex = 0;
+        u.targetQueue = [];
+      });
+    },
 
-  if (!target) return;
+    APPLY_DAMAGE: (state, { id, amount, time }) => {
+      const target =
+        state.units.find((u) => u.id === id) ||
+        state.buildings.find((b) => b.id === id);
 
-  target.hp = Math.max(0, target.hp - amount);
-  target.damagedAt = time;
-},
-REMOVE_DESTROYED: (state) => {
-  const aliveUnits = state.units.filter((unit) => unit.hp > 0);
-  const aliveBuildings = state.buildings.filter(
-    (building) => building.hp > 0
-  );
+      if (!target) return;
 
-  if (aliveUnits.length !== state.units.length) {
-    state.units = aliveUnits;
-  }
+      target.hp = Math.max(0, target.hp - amount);
+      target.damagedAt = time;
+    },
 
-  if (aliveBuildings.length !== state.buildings.length) {
-    state.buildings = aliveBuildings;
-  }
-},
+    REMOVE_DESTROYED: (state) => {
+      const aliveUnits = state.units.filter((unit) => unit.hp > 0);
+      const aliveBuildings = state.buildings.filter(
+        (building) => building.hp > 0
+      );
+
+      if (aliveUnits.length !== state.units.length) {
+        state.units = aliveUnits;
+      }
+
+      if (aliveBuildings.length !== state.buildings.length) {
+        state.buildings = aliveBuildings;
+      }
+    },
+
     SET_TARGET: (state, { id, target }) => {
       const u = state.units.find((u) => u.id === id);
       if (!u) return;
@@ -608,7 +612,7 @@ REMOVE_DESTROYED: (state) => {
         return;
       }
       u.attackTarget = null;
-u.attackTimer = 0;
+      u.attackTimer = 0;
       let t = { x: clamp(target.x), y: clamp(target.y) };
 
       // Если точка внутри здания — выталкиваем её на границу
@@ -619,7 +623,13 @@ u.attackTimer = 0;
 
       u.target = t;
       u.targetQueue = [];
-      u.path = buildPath(u.position, t, state.buildings, UNIT_RADIUS, u.movementType);
+      u.path = buildPath(
+        u.position,
+        t,
+        state.buildings,
+        UNIT_RADIUS,
+        u.movementType
+      );
       u.pathIndex = 0;
     },
 
@@ -668,7 +678,10 @@ u.attackTimer = 0;
       if (b) b.screen = screen;
     },
 
-    ADD_BUILDING: (state, { type, size, width, height, position, group = "group1" }) => {
+    ADD_BUILDING: (
+      state,
+      { type, size, width, height, position, group = "group1" }
+    ) => {
       const definition = buildingType(type);
       if (!definition) return;
 
@@ -685,15 +698,6 @@ u.attackTimer = 0;
         damagedAt: null,
         screen: { x: 0, y: 0 },
       });
-    },
-
-    APPLY_DAMAGE: (state, { id, amount, time }) => {
-      const target =
-        state.units.find((u) => u.id === id) ||
-        state.buildings.find((b) => b.id === id);
-      if (!target) return;
-      target.hp = Math.max(0, target.hp - amount);
-      target.damagedAt = time;
     },
 
     ADD_UNIT: (
@@ -741,8 +745,9 @@ u.attackTimer = 0;
       // Создаём юнитов с новыми ID.
       scenario.units.forEach(([x, y, group, movementType, unitType]) => {
         const selectedUnitType = unitType
-        ? Object.values(UNIT_TYPES).find((item) => item.type === unitType)
-        : UNIT_TYPES.SWORDSMAN;
+          ? Object.values(UNIT_TYPES).find((item) => item.type === unitType)
+          : UNIT_TYPES.SWORDSMAN;
+
         commit("ADD_UNIT", {
           position: { x: x * GRID_STEP, y: y * GRID_STEP },
           group,
@@ -778,108 +783,112 @@ u.attackTimer = 0;
     moveUnits: ({ state, commit }, dt) => {
       const R = UNIT_RADIUS;
       const B = state.buildings;
-const getAttackTarget = (u) => {
-  if (!u.attackTarget) return null;
 
-  if (u.attackTarget.type === "unit") {
-    return state.units.find(
-      (target) => target.id === u.attackTarget.id
-    );
-  }
+      const getAttackTarget = (u) => {
+        if (!u.attackTarget) return null;
 
-  return state.buildings.find(
-    (target) => target.id === u.attackTarget.id
-  );
-};
-state.units.forEach((u) => {
-  // Отсчёт задержки перед повторным поиском пути
-  u.repathTimer = Math.max(0, (u.repathTimer || 0) - dt);
+        if (u.attackTarget.type === "unit") {
+          return state.units.find((target) => target.id === u.attackTarget.id);
+        }
 
-  if (u.attackTarget) {
-    const target = getAttackTarget(u);
+        return state.buildings.find(
+          (target) => target.id === u.attackTarget.id
+        );
+      };
 
-    if (!target || target.hp <= 0) {
-      u.attackTarget = null;
-      u.attackTimer = 0;
-      u.attackSlot = null;
-      u.repathTimer = 0;
-      u.target = null;
-      u.path = [];
-      u.pathIndex = 0;
-      u.targetQueue = [];
-      return;
-    }
-    const targetWidth =
-  u.attackTarget.type === "unit"
-    ? UNIT_RADIUS * 2
-    : target.width ?? target.size;
+      state.units.forEach((u) => {
+        // Отсчёт задержки перед повторным поиском пути
+        u.repathTimer = Math.max(0, (u.repathTimer || 0) - dt);
 
-const targetHeight =
-  u.attackTarget.type === "unit"
-    ? UNIT_RADIUS * 2
-    : target.height ?? target.size;
+        if (u.attackTarget) {
+          const target = getAttackTarget(u);
 
-const dx = Math.max(
-  Math.abs(u.position.x - target.position.x) - targetWidth / 2,
-  0
-);
+          if (!target || target.hp <= 0) {
+            u.attackTarget = null;
+            u.attackTimer = 0;
+            u.attackSlot = null;
+            u.repathTimer = 0;
+            u.target = null;
+            u.path = [];
+            u.pathIndex = 0;
+            u.targetQueue = [];
+            return;
+          }
 
-const dy = Math.max(
-  Math.abs(u.position.y - target.position.y) - targetHeight / 2,
-  0
-);
+          const targetWidth =
+            u.attackTarget.type === "unit"
+              ? UNIT_RADIUS * 2
+              : target.width ?? target.size;
 
-const distance = Math.hypot(dx, dy);
-if (distance <= ATTACK_RANGE) {
-  u.target = null;
-  u.path = [];
-  u.pathIndex = 0;
-u.attackTimer = (u.attackTimer || 0) + dt;
+          const targetHeight =
+            u.attackTarget.type === "unit"
+              ? UNIT_RADIUS * 2
+              : target.height ?? target.size;
 
-const attackInterval = 1 / u.attackSpeed;
+          const dx = Math.max(
+            Math.abs(u.position.x - target.position.x) - targetWidth / 2,
+            0
+          );
 
-if (u.attackTimer >= attackInterval) {
-  commit("APPLY_DAMAGE", {
-    id: target.id,
-    amount: u.strength,
-    time: Date.now(),
-  });
+          const dy = Math.max(
+            Math.abs(u.position.y - target.position.y) - targetHeight / 2,
+            0
+          );
 
-  u.attackTimer -= attackInterval;
-}
+          const distance = Math.hypot(dx, dy);
 
-return;
-}
-const needsPath = !u.target || !u.path || u.path.length === 0;
+          if (distance <= ATTACK_RANGE) {
+            u.target = null;
+            u.path = [];
+            u.pathIndex = 0;
+            u.attackTimer = (u.attackTimer || 0) + dt;
 
-// Путь к цели атаки: каждый юнит занимает свою сторону цели
-if (needsPath && u.repathTimer <= 0) {
-  const attackers = state.units.filter(
-    (other) => other.attackTarget && other.attackTarget.id === target.id
-  ).length;
+            const attackInterval = 1 / u.attackSpeed;
 
-  const { path, slot } = buildAttackPath(
-    u.position,
-    target,
-    state.buildings,
-    u.movementType,
-    u.attackTarget.type,
-    {
-      slots: Math.max(ATTACK_SLOTS, attackers),
-      occupied: attackSlotsOf(state.units, target.id, u.id),
-    }
-  );
+            if (u.attackTimer >= attackInterval) {
+              commit("APPLY_DAMAGE", {
+                id: target.id,
+                amount: u.strength,
+                time: Date.now(),
+              });
 
-  u.path = path;
-  u.pathIndex = 0;
-  u.attackSlot = slot;
-  u.target = path.length > 0 ? path[path.length - 1] : null;
-  // Цель недостижима — не ищем путь заново каждый кадр
-  u.repathTimer = path.length > 0 ? 0 : REPATH_DELAY;
-}
-  }
+              u.attackTimer -= attackInterval;
+            }
 
-  if (!u.target) return;
+            return;
+          }
+
+          const needsPath = !u.target || !u.path || u.path.length === 0;
+
+          // Путь к цели атаки: каждый юнит занимает свою сторону цели
+          if (needsPath && u.repathTimer <= 0) {
+            const attackers = state.units.filter(
+              (other) => other.attackTarget && other.attackTarget.id === target.id
+            ).length;
+
+            const { path, slot } = buildAttackPath(
+              u.position,
+              target,
+              state.buildings,
+              u.movementType,
+              u.attackTarget.type,
+              {
+                slots: Math.max(ATTACK_SLOTS, attackers),
+                occupied: attackSlotsOf(state.units, target.id, u.id),
+              }
+            );
+
+            u.path = path;
+            u.pathIndex = 0;
+            u.attackSlot = slot;
+            u.target = path.length > 0 ? path[path.length - 1] : null;
+            // Цель недостижима — не ищем путь заново каждый кадр
+            u.repathTimer = path.length > 0 ? 0 : REPATH_DELAY;
+          }
+        }
+
+        if (!u.target) return;
+
         if (!u.path || u.path.length === 0) {
           u.target = null;
           u.pathIndex = 0;
@@ -902,11 +911,15 @@ if (needsPath && u.repathTimer <= 0) {
           } else {
             const nx = (dx / dist) * budget;
             const ny = (dy / dist) * budget;
+
             let newX = u.position.x;
             let newY = u.position.y;
+
             if (!collidesWithBuildings(newX + nx, newY, R, B)) newX += nx;
             if (!collidesWithBuildings(newX, newY + ny, R, B)) newY += ny;
+
             const fixed = resolveCollisions(newX, newY, R, B);
+
             commit("SET_POSITION", { id: u.id, x: fixed.x, y: fixed.y });
             budget = 0;
           }
@@ -915,6 +928,7 @@ if (needsPath && u.repathTimer <= 0) {
         if (u.pathIndex >= u.path.length) {
           if (u.targetQueue.length > 0) {
             const nextTarget = u.targetQueue.shift();
+
             u.path = buildPath(
               u.position,
               nextTarget,
@@ -922,6 +936,7 @@ if (needsPath && u.repathTimer <= 0) {
               UNIT_RADIUS,
               u.movementType
             );
+
             u.pathIndex = 0;
             u.target = nextTarget;
           } else {
@@ -929,7 +944,9 @@ if (needsPath && u.repathTimer <= 0) {
           }
         }
       });
+
       commit("REMOVE_DESTROYED");
+
       // Юниты не должны слипаться в одну точку — расталкиваем пересекающиеся пары
       separateUnits(state.units, state.buildings);
     },

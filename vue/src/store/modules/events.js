@@ -1,6 +1,8 @@
 import { EVENT_TYPE, DRAG_THRESHOLD, UNIT_RADIUS } from "@/config/game";
 import { BUILDING_TYPES } from "@/config/game";
+
 let nextEventId = 1;
+
 const findTargetAtPosition = (world, units, buildings) => {
   const unit = units.find((u) => {
     const distance = Math.hypot(
@@ -27,6 +29,7 @@ const findTargetAtPosition = (world, units, buildings) => {
 
   return null;
 };
+
 const canAttackTarget = (unit, target) => {
   if (unit.group === target.group) return false;
 
@@ -39,6 +42,7 @@ const canAttackTarget = (unit, target) => {
 
   return unit.movementType === targetMovementType;
 };
+
 // Модуль: очередь текущих событий, накопленных за кадр
 export default {
   namespaced: true,
@@ -106,17 +110,19 @@ export default {
           });
           return;
         }
-if (event.type === EVENT_TYPE.ATTACK_TARGET) {
-  const { unitIds, targetId, targetType } = event.payload;
 
-  commit(
-    "map/SET_ATTACK_TARGET",
-    { unitIds, targetId, targetType },
-    { root: true },
-  );
+        if (event.type === EVENT_TYPE.ATTACK_TARGET) {
+          const { unitIds, targetId, targetType } = event.payload;
 
-  return;
-}
+          commit(
+            "map/SET_ATTACK_TARGET",
+            { unitIds, targetId, targetType },
+            { root: true },
+          );
+
+          return;
+        }
+
         if (event.type === EVENT_TYPE.ZOOM_CAMERA) {
           commit("game/PUSH_ZOOM", event.payload, { root: true });
           return;
@@ -151,6 +157,7 @@ if (event.type === EVENT_TYPE.ATTACK_TARGET) {
             { root: true },
           );
         }
+
         if (event.type === EVENT_TYPE.SPAWN_UNIT) {
           dispatch("map/spawnUnit", event.payload.buildingId, { root: true });
         }
@@ -257,36 +264,36 @@ if (event.type === EVENT_TYPE.ATTACK_TARGET) {
 
     // Постановка здания по клику ЛКМ: событие применяется при пересчёте кадра
     placeBuilding: ({ rootState, rootGetters, commit, dispatch }, cursor) => {
-  const type = rootState.game.buildType;
-  if (!type) return;
-  if (rootState.game.isPaused) return;
+      const type = rootState.game.buildType;
+      if (!type) return;
+      if (rootState.game.isPaused) return;
 
-  const world = rootGetters["game/getWorldByScreen"](cursor);
+      const world = rootGetters["game/getWorldByScreen"](cursor);
 
-  const horizontal =
-    type.type === "ship" &&
-    rootState.game.buildOrientation === "horizontal";
+      const horizontal =
+        type.type === "ship" &&
+        rootState.game.buildOrientation === "horizontal";
 
-  const orientedType = horizontal
-    ? { ...type, width: type.height, height: type.width }
-    : type;
+      const orientedType = horizontal
+        ? { ...type, width: type.height, height: type.width }
+        : type;
 
-  if (!rootGetters["map/canPlace"](world, orientedType)) return;
+      if (!rootGetters["map/canPlace"](world, orientedType)) return;
 
-  dispatch("pushEvent", {
-    type: EVENT_TYPE.BUILD_BUILDING,
-    payload: {
-      type: type.type,
-      size: type.size,
-      width: orientedType.width,
-      height: orientedType.height,
-      world,
-      group: rootState.game.buildGroup,
+      dispatch("pushEvent", {
+        type: EVENT_TYPE.BUILD_BUILDING,
+        payload: {
+          type: type.type,
+          size: type.size,
+          width: orientedType.width,
+          height: orientedType.height,
+          world,
+          group: rootState.game.buildGroup,
+        },
+      });
+
+      commit("game/SET_BUILD_TYPE", null, { root: true });
     },
-  });
-
-  commit("game/SET_BUILD_TYPE", null, { root: true });
-},
 
     moveSelected: (
       { rootState, rootGetters, commit, dispatch },
@@ -302,30 +309,32 @@ if (event.type === EVENT_TYPE.ATTACK_TARGET) {
       if (unitIds.length === 0) return;
 
       const target = rootGetters["game/getWorldByScreen"](cursor);
-const targetObject = findTargetAtPosition(
-  target,
-  rootState.map.units,
-  rootState.map.buildings,
-);
-if (targetObject) {
-  const compatibleUnits = rootState.map.units.filter(
-    (unit) =>
-      unitIds.includes(unit.id) &&
-      canAttackTarget(unit, targetObject),
-  );
+      const targetObject = findTargetAtPosition(
+        target,
+        rootState.map.units,
+        rootState.map.buildings,
+      );
 
-  if (compatibleUnits.length > 0) {
-    dispatch("pushEvent", {
-      type: EVENT_TYPE.ATTACK_TARGET,
-      payload: {
-        unitIds: compatibleUnits.map((unit) => unit.id),
-        targetId: targetObject.id,
-        targetType: targetObject.targetType,
-      },
-    });
-    return;
-  }
-}
+      if (targetObject) {
+        const compatibleUnits = rootState.map.units.filter(
+          (unit) =>
+            unitIds.includes(unit.id) &&
+            canAttackTarget(unit, targetObject),
+        );
+
+        if (compatibleUnits.length > 0) {
+          dispatch("pushEvent", {
+            type: EVENT_TYPE.ATTACK_TARGET,
+            payload: {
+              unitIds: compatibleUnits.map((unit) => unit.id),
+              targetId: targetObject.id,
+              targetType: targetObject.targetType,
+            },
+          });
+          return;
+        }
+      }
+
       if (isShift) {
         unitIds.forEach((id) => {
           commit("map/ADD_TARGET_TO_QUEUE", { id, target }, { root: true });

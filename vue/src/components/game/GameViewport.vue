@@ -23,16 +23,16 @@
       :offset="HEALTH_BAR.unitOffset"
       :style="{ zIndex: Z_INDEX.HEALTH_BAR }"
     />
-<HealthBar
-  v-for="b in focusedBuildings"
-  :key="'hpb' + b.id"
-  :hp="b.hp"
-  :max-hp="b.maxHp"
-  :screen="b.screen"
-  :width="b.width ?? b.size"
-  :offset="(b.height ?? b.size) / 4 + HEALTH_BAR.buildingOffset"
-  :style="{ zIndex: Z_INDEX.HEALTH_BAR }"
-/>
+    <HealthBar
+      v-for="b in focusedBuildings"
+      :key="'hpb' + b.id"
+      :hp="b.hp"
+      :max-hp="b.maxHp"
+      :screen="b.screen"
+      :width="b.width ?? b.size"
+      :offset="(b.height ?? b.size) / 4 + HEALTH_BAR.buildingOffset"
+      :style="{ zIndex: Z_INDEX.HEALTH_BAR }"
+    />
 
     <BuildPanel />
     <StatsPanel />
@@ -65,10 +65,10 @@
       class="game-viewport__overlay game-viewport__overlay--start"
     >
       <div class="game-viewport__menu">
-        <h2>Новая игра</h2>
-        <p>Выберите сценарий</p>
+        <h2 class="game-viewport__menu-title">Новая игра</h2>
+        <p class="game-viewport__menu-text">Выберите сценарий</p>
 
-        <select v-model="selectedScenarioId">
+        <select v-model="selectedScenarioId" class="game-viewport__select">
           <option
             v-for="scenario in SCENARIOS"
             :key="scenario.id"
@@ -88,7 +88,7 @@
     </div>
     <div v-if="isPaused && !showScenarioMenu" class="game-viewport__overlay">
       <div class="game-viewport__menu">
-        <h2>Пауза</h2>
+        <h2 class="game-viewport__menu-title">Пауза</h2>
 
         <button
           class="game-viewport__action game-viewport__action--primary"
@@ -267,7 +267,7 @@ const onWheel = (event) => {
   });
 };
 
-// Отрисовка действительности из стора
+// Отрисовка состояния из стора
 const units = computed(() => store.state.map.units);
 const buildings = computed(() => store.state.map.buildings);
 // Игровое время кадра — зависимость для автоскрытия хпбара после урона
@@ -287,6 +287,7 @@ const focusedUnits = computed(() => {
   const ids = store.state.game.selectedUnitIds;
   return units.value.filter((u) => isBarVisible(u, ids.includes(u.id)));
 });
+
 const focusedBuildings = computed(() => {
   const id = store.state.game.selectedBuildingId;
   return buildings.value.filter((b) => isBarVisible(b, b.id === id));
@@ -300,6 +301,7 @@ const selectionStyle = computed(() => ({
   height: `${selectionRect.value.y2 - selectionRect.value.y1}px`,
   zIndex: Z_INDEX.SELECTION_RECT,
 }));
+
 const controlsStyle = { zIndex: Z_INDEX.CONTROLS_PANEL };
 
 const updateViewport = () => {
@@ -316,6 +318,7 @@ onMounted(() => {
   window.addEventListener("resize", updateViewport);
   updateViewport();
 });
+
 onUnmounted(() => {
   window.removeEventListener("keydown", onKeyDown);
   window.removeEventListener("keyup", onKeyUp);
@@ -333,129 +336,135 @@ onUnmounted(() => {
   cursor: crosshair;
   font-family:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-}
 
-.game-viewport__selection {
-  position: absolute;
-  border: 2px solid rgba(80, 180, 255, 0.9);
-  background: rgba(80, 180, 255, 0.18);
-  pointer-events: none;
-}
-
-.game-viewport__controls {
-  position: absolute;
-  top: 90px;
-  right: 24px;
-  padding: 1vw 1.3vw;
-  background: rgba(15, 15, 15, 0.82);
-  color: #e8e8e8;
-  border-radius: 10px;
-  font-size: clamp(16px, 0.9vw, 27px);
-  line-height: 1.75;
-  min-width: clamp(300px, 18.5vw, 480px);
-  pointer-events: none;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
-}
-
-.game-viewport__row {
-  display: flex;
-  justify-content: space-between;
-  gap: 1.2vw;
-  white-space: nowrap;
-}
-
-.game-viewport__key {
-  color: #a0d0ff;
-  font-weight: 600;
-}
-
-.game-viewport__desc {
-  color: #d0d0d0;
-}
-
-.game-viewport__topbar {
-  position: absolute;
-  top: 16px;
-  left: 16px;
-  right: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  background: rgba(15, 15, 15, 0.88);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
-  color: #e8e8e8;
-  z-index: 100;
-}
-
-.game-viewport__game-title {
-  font-size: 17px;
-  font-weight: 600;
-}
-
-.game-viewport__game-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.game-viewport__action {
-  padding: 9px 14px;
-  border: 1px solid #555;
-  border-radius: 7px;
-  background: #252525;
-  color: #e8e8e8;
-  font-size: 14px;
-  cursor: pointer;
-
-  &:hover {
-    background: #414141;
+  &__selection {
+    position: absolute;
+    border: 2px solid rgba(80, 180, 255, 0.9);
+    background: rgba(80, 180, 255, 0.18);
+    pointer-events: none;
   }
-}
 
-.game-viewport__action--primary {
-  background: #315779;
-  border-color: #6b9bc8;
-
-  &:hover {
-    background: #3d719e;
+  &__controls {
+    position: absolute;
+    top: 90px;
+    right: 24px;
+    padding: 1vw 1.3vw;
+    background: rgba(15, 15, 15, 0.82);
+    color: #e8e8e8;
+    border-radius: 10px;
+    font-size: clamp(16px, 0.9vw, 27px);
+    line-height: 1.75;
+    min-width: clamp(300px, 18.5vw, 480px);
+    pointer-events: none;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
   }
-}
 
-.game-viewport__overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 200;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.45);
-  pointer-events: auto;
-}
+  &__row {
+    display: flex;
+    justify-content: space-between;
+    gap: 1.2vw;
+    white-space: nowrap;
+  }
 
-.game-viewport__menu {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  width: min(380px, calc(100% - 32px));
-  padding: 28px;
-  background: #202020;
-  border: 1px solid #555;
-  border-radius: 12px;
-  color: #e8e8e8;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  &__key {
+    color: #a0d0ff;
+    font-weight: 600;
+  }
 
-  h2 {
+  &__desc {
+    color: #d0d0d0;
+  }
+
+  &__topbar {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    right: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: rgba(15, 15, 15, 0.88);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    color: #e8e8e8;
+    z-index: 100;
+  }
+
+  &__game-title {
+    font-size: 17px;
+    font-weight: 600;
+  }
+
+  &__game-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  &__action {
+    padding: 9px 14px;
+    border: 1px solid #555;
+    border-radius: 7px;
+    background: #252525;
+    color: #e8e8e8;
+    font-size: 14px;
+    cursor: pointer;
+
+    &:hover {
+      background: #414141;
+    }
+
+    &--primary {
+      background: #315779;
+      border-color: #6b9bc8;
+
+      &:hover {
+        background: #3d719e;
+      }
+    }
+  }
+
+  &__overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.45);
+    pointer-events: auto;
+
+    &--start {
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 100px;
+    }
+  }
+
+  &__menu {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    width: min(380px, calc(100% - 32px));
+    padding: 28px;
+    background: #202020;
+    border: 1px solid #555;
+    border-radius: 12px;
+    color: #e8e8e8;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  }
+
+  &__menu-title {
     margin: 0;
     font-size: 24px;
   }
 
-  p {
+  &__menu-text {
     margin: 0;
     color: #aaa;
   }
 
-  select {
+  &__select {
     width: 100%;
     padding: 11px;
     border: 1px solid #555;
@@ -464,11 +473,5 @@ onUnmounted(() => {
     color: #eee;
     font-size: 15px;
   }
-}
-
-.game-viewport__overlay--start {
-  align-items: flex-start;
-  justify-content: center;
-  padding-top: 100px;
 }
 </style>

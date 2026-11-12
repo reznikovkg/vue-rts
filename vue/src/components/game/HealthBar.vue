@@ -40,11 +40,11 @@ const barStyle = computed(() => ({
   box-sizing: border-box;
   pointer-events: none;
   overflow: hidden;
-}
 
-.health-bar__fill {
-  height: 100%;
-  background: #3ec46d;
-  transition: width 0.2s;
+  &__fill {
+    height: 100%;
+    background: #3ec46d;
+    transition: width 0.2s;
+  }
 }
 </style>

@@ -46,12 +46,12 @@ const onClick = () => store.dispatch('events/clickUnit', props.unit.id);
   cursor: pointer;
   transition: transform 0.08s;
 
-  &.unit--selected {
+  &--selected {
     border-color: #8a6010;
     box-shadow: 0 0 0 2px #8a6010;
   }
 
-  &.unit--focused {
+  &--focused {
     border-color: #a0d0ff;
     box-shadow:
       0 0 0 2px #a0d0ff,

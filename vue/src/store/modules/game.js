@@ -53,7 +53,7 @@ export default {
     // Строительство: выбранный тип здания, группа постройки и последняя экранная точка курсора
     buildType: null,
     buildGroup: GROUP_LIST[0].id,
-    buildOrientation: 'vertical',
+    buildOrientation: "vertical",
     cursor: null,
     // Последний пересчитанный кадр: dt — длительность, time — накопленное игровое время
     frame: { dt: 0, time: 0 },
@@ -94,22 +94,27 @@ export default {
     SET_VIEWPORT: (state, size) => {
       state.viewport = size;
     },
+
     SET_CAMERA: (state, cam) => {
       state.camera = cam;
     },
+
     MOVE_CAMERA: (state, offset) => {
       state.camera.x += offset.x;
       state.camera.y += offset.y;
     },
+
     SET_ZOOM: (state, zoom) => {
       state.camera.zoom = zoom;
     },
+
     SET_SELECTED: (state, ids) => {
       state.selectedUnitIds = ids;
       // Новое выделение — просмотр снова начинается со сводки отряда
       state.focusedUnitId = null;
       if (ids.length) state.selectedBuildingId = null;
     },
+
     SET_SELECTED_BUILDING: (state, id) => {
       state.selectedBuildingId = id;
       if (id) {
@@ -117,21 +122,27 @@ export default {
         state.focusedUnitId = null;
       }
     },
+
     SET_FOCUSED_UNIT: (state, id) => {
       state.focusedUnitId = id;
     },
+
     SET_BUILD_TYPE: (state, type) => {
       state.buildType = type;
     },
+
     SET_BUILD_ORIENTATION: (state, orientation) => {
       state.buildOrientation = orientation;
     },
+
     SET_BUILD_GROUP: (state, group) => {
       state.buildGroup = group;
     },
+
     SET_CURSOR: (state, point) => {
       state.cursor = point;
     },
+
     SET_PAUSED: (state, value) => {
       state.isPaused = value;
     },
@@ -139,6 +150,7 @@ export default {
     SET_KEY: (state, { key, pressed }) => {
       if (key in state.keys) state.keys[key] = pressed;
     },
+
     CLEAR_KEYS: (state) => {
       Object.keys(state.keys).forEach((key) => {
         state.keys[key] = false;
@@ -148,6 +160,7 @@ export default {
     START_DRAG: (state, point) => {
       state.drag = { start: point, current: point, dragged: false };
     },
+
     UPDATE_DRAG: (state, { point, threshold }) => {
       if (!state.drag.start) return;
       state.drag.current = point;
@@ -156,6 +169,7 @@ export default {
         state.drag.dragged = true;
       }
     },
+
     END_DRAG: (state) => {
       state.drag = { start: null, current: null, dragged: false };
     },
@@ -174,7 +188,7 @@ export default {
       state.focusedUnitId = null;
 
       state.buildType = null;
-      state.buildOrientation = 'vertical';
+      state.buildOrientation = "vertical";
       state.buildGroup = GROUP_LIST[0].id;
       state.cursor = null;
 
@@ -204,18 +218,23 @@ export default {
     setViewport: ({ commit }, size) => {
       commit("SET_VIEWPORT", size);
     },
+
     setCamera: ({ commit }, cam) => {
       commit("SET_CAMERA", cam);
     },
+
     moveCamera: ({ commit }, offset) => {
       commit("MOVE_CAMERA", offset);
     },
+
     setZoom: ({ commit }, z) => {
       commit("SET_ZOOM", z);
     },
+
     selectUnits: ({ commit }, ids) => {
       commit("SET_SELECTED", ids);
     },
+
     // Перебор юнитов внутри выделения: Tab (шаг +1) и Shift+Tab (шаг -1)
     focusUnit: ({ state, commit }, step = 1) => {
       const ids = state.selectedUnitIds;
@@ -238,6 +257,7 @@ export default {
     endDrag: ({ commit }) => {
       commit("END_DRAG");
     },
+
     togglePause: ({ state, commit }) => {
       commit("SET_PAUSED", !state.isPaused);
     },
@@ -257,8 +277,9 @@ export default {
     applyInput: ({ state, commit }, { dt }) => {
       const { keys, camera } = state;
 
-      let sx = 0,
-        sy = 0;
+      let sx = 0;
+      let sy = 0;
+
       if (keys.w || keys.ArrowUp) sy -= 1;
       if (keys.s || keys.ArrowDown) sy += 1;
       if (keys.a || keys.ArrowLeft) sx -= 1;

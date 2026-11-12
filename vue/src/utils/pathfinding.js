@@ -1,4 +1,10 @@
-import { MAP_SIZE, UNIT_RADIUS, TERRAIN_TYPES, MOVEMENT_TYPES, ATTACK_RANGE, } from '@/config/game';
+import {
+  MAP_SIZE,
+  UNIT_RADIUS,
+  TERRAIN_TYPES,
+  MOVEMENT_TYPES,
+  ATTACK_RANGE,
+} from '@/config/game';
 import { getTerrainAt } from '@/utils/terrain';
 
 const CELL = UNIT_RADIUS;
@@ -21,10 +27,13 @@ const isBridgeAt = (x, y) => {
 
   const lengthSquared = dx * dx + dy * dy;
 
-  const t = Math.max(0, Math.min(1,
-    ((x - BRIDGE_START.x) * dx + (y - BRIDGE_START.y) * dy) /
-    lengthSquared
-  ));
+  const t = Math.max(
+    0,
+    Math.min(
+      1,
+      ((x - BRIDGE_START.x) * dx + (y - BRIDGE_START.y) * dy) / lengthSquared
+    )
+  );
 
   const closestX = BRIDGE_START.x + t * dx;
   const closestY = BRIDGE_START.y + t * dy;
@@ -115,10 +124,14 @@ const astar = (sx, sy, ex, ey, buildings, movementType) => {
   const g = new Map([[key(sc.x, sc.y), 0]]);
 
   const dirs = [
-    [0, -1, 1], [0, 1, 1],
-    [-1, 0, 1], [1, 0, 1],
-    [-1, -1, 1.414], [1, -1, 1.414],
-    [-1, 1, 1.414], [1, 1, 1.414]
+    [0, -1, 1],
+    [0, 1, 1],
+    [-1, 0, 1],
+    [1, 0, 1],
+    [-1, -1, 1.414],
+    [1, -1, 1.414],
+    [-1, 1, 1.414],
+    [1, 1, 1.414],
   ];
 
   let iter = 0;
@@ -140,10 +153,7 @@ const astar = (sx, sy, ex, ey, buildings, movementType) => {
       let node = { x: cur.x, y: cur.y };
 
       while (came.has(ck)) {
-        raw.unshift({
-          x: node.x * CELL,
-          y: node.y * CELL
-        });
+        raw.unshift({ x: node.x * CELL, y: node.y * CELL });
 
         node = came.get(ck);
         ck = key(node.x, node.y);
@@ -214,7 +224,10 @@ export const collidesWithBuildings = (x, y, r, buildings) => {
 };
 
 const hasLineOfSight = (
-  x1, y1, x2, y2,
+  x1,
+  y1,
+  x2,
+  y2,
   buildings,
   radius,
   movementType
@@ -308,6 +321,7 @@ export const buildPath = (
 
   return smoothPath(start, raw, buildings, radius, movementType);
 };
+
 // Путь к цели атаки.
 // Вокруг цели строится кольцо из слотов (точек, откуда юнит достаёт цель),
 // каждый юнит занимает свою сторону: занятые слоты передаются в occupied.
@@ -340,10 +354,7 @@ export const buildAttackPath = (
 
   // Сколько точек помещается вокруг цели, чтобы юниты не встали друг на друга
   const perimeter = Math.PI * (halfWidth + halfHeight);
-  const capacity = Math.max(
-    1,
-    Math.floor(perimeter / ATTACK_MIN_GAP)
-  );
+  const capacity = Math.max(1, Math.floor(perimeter / ATTACK_MIN_GAP));
   const slotCount = Math.min(requestedSlots, capacity);
 
   // Направление от цели на юнита: с этой стороны начинаем искать свободный слот

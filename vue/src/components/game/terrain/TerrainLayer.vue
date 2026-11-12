@@ -1,7 +1,6 @@
-
 <template>
   <svg
-    class="game-world__terrain"
+    class="terrain-layer"
     :width="MAP_SIZE"
     :height="MAP_SIZE"
     :viewBox="`0 0 ${MAP_SIZE} ${MAP_SIZE}`"
@@ -60,46 +59,44 @@
 
         <feGaussianBlur stdDeviation="4" />
       </filter>
-      
-<!-- Градиент глубины воды -->
-<linearGradient id="water-depth" x1="0" y1="0" x2="1" y2="1">
-  <stop offset="0%" stop-color="#245d83" />
-  <stop offset="45%" stop-color="#397da5" />
-  <stop offset="100%" stop-color="#1d5279" />
-</linearGradient>
 
-<!-- Неровная текстура воды -->
-<filter id="water-texture" x="0%" y="0%" width="100%" height="100%">
-  <feTurbulence
-    type="fractalNoise"
-    baseFrequency="0.012 0.035"
-    numOctaves="2"
-    seed="18"
-    result="noise"
-  />
-  <feColorMatrix
-    in="noise"
-    type="saturate"
-    values="0"
-    result="grayNoise"
-  />
-  <feBlend
-    in="SourceGraphic"
-    in2="grayNoise"
-    mode="soft-light"
-  />
-</filter>
+      <!-- Градиент глубины воды -->
+      <linearGradient id="water-depth" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#245d83" />
+        <stop offset="45%" stop-color="#397da5" />
+        <stop offset="100%" stop-color="#1d5279" />
+      </linearGradient>
 
-<!-- Ограничиваем эффекты границами реки -->
-<clipPath id="water-clip">
-  <path
-    v-for="(area, index) in TERRAIN_AREAS"
-    :key="`water-clip-${index}`"
-    :d="terrainPath(area.points)"
-  />
-</clipPath>
+      <!-- Неровная текстура воды -->
+      <filter id="water-texture" x="0%" y="0%" width="100%" height="100%">
+        <feTurbulence
+          type="fractalNoise"
+          baseFrequency="0.012 0.035"
+          numOctaves="2"
+          seed="18"
+          result="noise"
+        />
+        <feColorMatrix
+          in="noise"
+          type="saturate"
+          values="0"
+          result="grayNoise"
+        />
+        <feBlend 
+          in="SourceGraphic" 
+          in2="grayNoise" 
+          mode="soft-light" 
+        />
+      </filter>
 
-
+      <!-- Ограничиваем эффекты границами реки -->
+      <clipPath id="water-clip">
+        <path
+          v-for="(area, index) in TERRAIN_AREAS"
+          :key="`water-clip-${index}`"
+          :d="terrainPath(area.points)"
+        />
+      </clipPath>
     </defs>
 
     <!-- Тёмные участки открытой почвы -->
@@ -124,10 +121,10 @@
       opacity="0.7"
     />
     <!-- Кустарники -->
-<BushLayer
-  :map-size="MAP_SIZE"
-  :water-paths="waterPaths"
-/>
+    <BushLayer
+      :map-size="MAP_SIZE"
+      :water-paths="waterPaths"
+    />
 
     <!-- Широкий внешний переход в землю -->
     <path
@@ -175,70 +172,69 @@
     <path
       v-for="(area, index) in TERRAIN_AREAS"
       :key="`water-${index}`"
-      class="terrain-water"
+      class="terrain-layer__water"
       :d="terrainPath(area.points)"
       :fill="TERRAIN_COLORS[area.type]"
     />
-    
-<!-- Глубина и неоднородность воды -->
-<g clip-path="url(#water-clip)">
-  <rect
-    x="0"
-    y="0"
-    :width="MAP_SIZE"
-    :height="MAP_SIZE"
-    fill="url(#water-depth)"
-    opacity="0.55"
-  />
 
-  <!-- Мягкая текстура водной поверхности -->
-  <rect
-    x="0"
-    y="0"
-    :width="MAP_SIZE"
-    :height="MAP_SIZE"
-    fill="#397da5"
-    filter="url(#water-texture)"
-    opacity="0.22"
-  />
+    <!-- Глубина и неоднородность воды -->
+    <g clip-path="url(#water-clip)">
+      <rect
+        x="0"
+        y="0"
+        :width="MAP_SIZE"
+        :height="MAP_SIZE"
+        fill="url(#water-depth)"
+        opacity="0.55"
+      />
 
-</g>
-<!-- Нижняя часть моста: тень и основание -->
-<g class="stone-bridge-under">
-  <!-- Переходы к берегам -->
-  <path
-    d="M 542 550 L 558 550 M 787 548 L 803 548"
-    stroke="#77766d"
-    stroke-width="40"
-    stroke-linecap="butt"
-    opacity="0.8"
-  />
+      <!-- Мягкая текстура водной поверхности -->
+      <rect
+        x="0"
+        y="0"
+        :width="MAP_SIZE"
+        :height="MAP_SIZE"
+        fill="#397da5"
+        filter="url(#water-texture)"
+        opacity="0.22"
+      />
+    </g>
 
-  <!-- Мягкая тень -->
-  <path
-    d="M 550 550 L 795 548"
-    stroke="#172d36"
-    stroke-width="52"
-    stroke-linecap="butt"
-    opacity="0.35"
-  />
+    <!-- Нижняя часть моста: тень и основание -->
+    <g class="terrain-layer__bridge">
+      <!-- Переходы к берегам -->
+      <path
+        d="M 542 550 L 558 550 M 787 548 L 803 548"
+        stroke="#77766d"
+        stroke-width="40"
+        stroke-linecap="butt"
+        opacity="0.8"
+      />
 
-  <!-- Каменное основание -->
-  <path
-    d="M 550 550 L 795 548"
-    stroke="#77766d"
-    stroke-width="46"
-    stroke-linecap="butt"
-  />
-</g>
+      <!-- Мягкая тень -->
+      <path
+        d="M 550 550 L 795 548"
+        stroke="#172d36"
+        stroke-width="52"
+        stroke-linecap="butt"
+        opacity="0.35"
+      />
 
-
+      <!-- Каменное основание -->
+      <path
+        d="M 550 550 L 795 548"
+        stroke="#77766d"
+        stroke-width="46"
+        stroke-linecap="butt"
+      />
+    </g>
   </svg>
 </template>
 
 <script setup>
 import { MAP_SIZE, TERRAIN_AREAS, TERRAIN_COLORS } from '@/config/game';
 import BushLayer from './BushLayer.vue';
+
 const terrainPath = (points) => {
   const coords = points.map(([x, y]) => ({
     x: x + MAP_SIZE / 2,
@@ -279,23 +275,23 @@ const terrainPath = (points) => {
 
   return path + ' Z';
 };
-const waterPaths = TERRAIN_AREAS.map(
-  area => terrainPath(area.points)
-);
+
+const waterPaths = TERRAIN_AREAS.map((area) => terrainPath(area.points));
 </script>
 
 <style scoped lang="scss">
-.game-world__terrain {
+.terrain-layer {
   position: absolute;
   left: -720px;
   top: -720px;
   pointer-events: none;
   overflow: hidden;
 
-  .terrain-water {
+  &__water {
     stroke: rgba(170, 210, 225, 0.8);
     stroke-width: 5px;
     stroke-linejoin: round;
   }
 }
 </style>
+

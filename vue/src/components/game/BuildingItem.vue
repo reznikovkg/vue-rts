@@ -17,7 +17,9 @@ const props = defineProps({
 });
 
 const store = useStore();
-const isSelected = computed(() => store.getters['game/isBuildingSelected'](props.building.id));
+const isSelected = computed(() =>
+  store.getters['game/isBuildingSelected'](props.building.id)
+);
 
 const style = computed(() => {
   const b = props.building;
@@ -43,7 +45,7 @@ const onClick = () => store.dispatch('events/clickBuilding', props.building.id);
   border: 1px solid #1a1a1a;
   cursor: pointer;
 
-  &.building--selected {
+  &--selected {
     border-color: #8a6010;
     box-shadow: 0 0 0 2px #8a6010;
   }
