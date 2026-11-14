@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="250" height="250">
+
+  <!-- каменистая земля вокруг горы -->
+  <filter id="shadows" color-interpolation-filters="sRGB">
+    <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="3" seed="5" stitchTiles="stitch"/>
+    <feColorMatrix values="0 0 0 0 0.16  0 0 0 0 0.13  0 0 0 0 0.10  0 0 0 1.1 -0.38"/>
+  </filter>
+  <filter id="rock" color-interpolation-filters="sRGB">
+    <feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="2" seed="7" stitchTiles="stitch"/>
+    <feColorMatrix values="0 0 0 0 0.87  0 0 0 0 0.83  0 0 0 0 0.78  0 0 0 1.0 -0.44"/>
+  </filter>
+  <filter id="grain" color-interpolation-filters="sRGB">
+    <feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="2" seed="13" stitchTiles="stitch"/>
+    <feColorMatrix values="0 0 0 0 0.10  0 0 0 0 0.08  0 0 0 0 0.06  0 0 0 1.0 -0.36"/>
+  </filter>
+  <rect width="250" height="250" filter="url(#shadows)"/>
+  <rect width="250" height="250" filter="url(#rock)"/>
+  <rect width="250" height="250" filter="url(#grain)"/>
+
+  <!-- гора: коричневая пирамида 172x172, высота на экране ~85 -->
+  <g stroke="rgba(0, 0, 0, 0.55)" stroke-width="2" stroke-linejoin="round">
+    <polygon fill="#96714f" points="42,214 214,214 8,8"/>
+    <polygon fill="#6e5138" points="214,214 214,42 8,8"/>
+
+    <!-- снежная шапка: срез на 3/8 от вершины -->
+    <polygon fill="#f5f3f0" points="21,85 85,85 8,8"/>
+    <polygon fill="#d9d4ce" points="85,85 85,21 8,8"/>
+  </g>
+
+  <!-- лёгкое зерно поверх горы, чтобы грани не выглядели плоскими -->
+  <rect width="250" height="250" filter="url(#grain)" opacity="0.3"/>
+</svg>

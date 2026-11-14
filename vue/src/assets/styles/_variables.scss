@@ -1,0 +1,37 @@
+// Общие переменные стилей игры.
+// Подключение в компоненте: @use '@/assets/styles/mixins' as *; (переменные приходят вместе с миксинами)
+
+// --- Обводка объектов ---
+$outline-color: #000;
+$outline-width: 2px;
+$selected-color: #fff;
+
+// --- Затемнение и тени ---
+$shadow-color: rgba(0, 0, 0, 0.3);
+$wall-shade: rgba(0, 0, 0, 0.25);
+$wall-shade-dark: rgba(0, 0, 0, 0.45);
+$grid-line-color: rgba(0, 0, 0, 0.2);
+
+// --- Карта и местность ---
+$field-background: #1a1a1a;
+$ground-color: #4a7c3a;
+$water-color: #2563eb;
+$sand-color: #cfb684;
+
+// --- Интерфейс: панели, кнопки, баннеры ---
+$panel-background: rgba(0, 0, 0, 0.7);
+$panel-background-hover: rgba(0, 0, 0, 0.9);
+$banner-background: rgba(0, 0, 0, 0.75);
+$panel-text-color: #fff;
+$panel-radius: 6px;
+$banner-radius: 8px;
+$button-radius: 4px;
+$danger-color: #dc2626;
+$danger-color-hover: #b91c1c;
+$action-color: #16a34a;
+$action-color-hover: #15803d;
+$hp-bar-background: rgba(0, 0, 0, 0.6);
+
+// --- Изометрия ---
+// ромбовидная проекция: поворот на 45 градусов и сжатие по вертикали вдвое
+$iso-transform: scaleY(0.5) rotate(45deg);

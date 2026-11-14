@@ -10,7 +10,8 @@
     "dev": "vite",
     "devhost": "vite --host",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test"
   },
   "dependencies": {
     "vue": "^3.5.18",

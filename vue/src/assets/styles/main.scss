@@ -1,0 +1,40 @@
+// Глобальные стили приложения, подключаются в main.js
+@use 'base';
+
+$accent: hsla(160, 100%, 37%, 1);
+$accent-hover: hsla(160, 100%, 37%, 0.2);
+$breakpoint-desktop: 1024px;
+
+#project {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  font-weight: normal;
+
+  @media (min-width: $breakpoint-desktop) {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 0 2rem;
+  }
+}
+
+a,
+.green {
+  text-decoration: none;
+  color: $accent;
+  transition: 0.4s;
+  padding: 3px;
+}
+
+@media (hover: hover) {
+  a:hover {
+    background-color: $accent-hover;
+  }
+}
+
+@media (min-width: $breakpoint-desktop) {
+  body {
+    display: flex;
+    place-items: center;
+  }
+}

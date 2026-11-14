@@ -1,9 +1,7 @@
 <template>
-  Index
-
   <div>
-    <RouterLink :to="{ name: $routes.EXAMPLE }">
-     To Example
+    <RouterLink class="start-button" :to="{ name: $routes.GAME }">
+     Начать игру!
     </RouterLink>
   </div>
 </template>
@@ -12,6 +10,8 @@
 
 </script>
 
-<style scoped>
-
+<style scoped lang="scss">
+.start-button {
+  font-size: 36px;
+}
 </style>

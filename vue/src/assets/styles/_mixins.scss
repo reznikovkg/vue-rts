@@ -1,0 +1,48 @@
+// Общие миксины игры.
+// Подключение в компоненте: @use '@/assets/styles/mixins' as *;
+// Переменные приходят вместе с миксинами, отдельно их подключать не нужно.
+
+@forward 'variables';
+@use 'variables' as *;
+
+// Плоская деталь, положенная на ромбовидную карту
+@mixin iso-flat {
+  transform: $iso-transform;
+}
+
+// Цвет детали у выбранного объекта.
+// Пример: @include when-selected(border-color);
+@mixin when-selected($property, $value: $selected-color) {
+  .selected > & {
+    #{$property}: $value;
+  }
+}
+
+// Чёрная обводка детали, которая становится белой при выделении
+@mixin outlined($radius: null) {
+  box-sizing: border-box;
+  border: $outline-width solid $outline-color;
+  border-radius: $radius;
+
+  @include when-selected(border-color);
+}
+
+// Палка-конечность юнита (рука, нога)
+@mixin limb($height) {
+  position: absolute;
+  width: 4px;
+  height: $height;
+  border-radius: 2px;
+  background: $outline-color;
+  transform-origin: top center;
+
+  @include when-selected(background);
+}
+
+// Линия без заливки (путь юнита, ребро крыши)
+@mixin line($style: solid, $color: $outline-color) {
+  position: absolute;
+  height: 0;
+  margin-top: -1px;
+  border-top: $outline-width $style $color;
+}

@@ -1,0 +1,19 @@
+// Грани объёмных объектов: стены и зубцы, общие для GameStaticObject и Battlements.
+// Подключается через @use внутри scoped-стилей компонента.
+
+@use 'mixins' as *;
+
+.face {
+  position: absolute;
+
+  @include outlined;
+}
+
+.wall {
+  transform-origin: 0 0;
+  background-image: linear-gradient($wall-shade, $wall-shade);
+
+  &.dark {
+    background-image: linear-gradient($wall-shade-dark, $wall-shade-dark);
+  }
+}
