@@ -23,61 +23,71 @@
     ></div>
 
     <!-- Здания -->
-    <BuildingItem
-      v-for="b in buildings"
-      :key="b.id"
-      :building="b"
-    />
+    <BuildingItem v-for="b in buildings" :key="b.id" :building="b" />
 
     <!-- Водные юниты: под мостом -->
-    <UnitItem
-      v-for="unit in waterUnits"
-      :key="unit.id"
-      :unit="unit"
-    />
+    <UnitItem v-for="unit in waterUnits" :key="unit.id" :unit="unit" />
 
     <!-- Верхняя часть моста -->
     <BridgeTopLayer />
 
     <!-- Наземные юниты: поверх моста -->
-    <UnitItem
-      v-for="unit in landUnits"
-      :key="unit.id"
-      :unit="unit"
-    />
+    <UnitItem v-for="unit in landUnits" :key="unit.id" :unit="unit" />
   </div>
+  <Teleport to="body">
+    <div v-if="isGameOver" class="game-result-overlay">
+      <div class="game-result-overlay__panel">
+        <h2 v-if="!isDraw">Победила группа: {{ winnerGroup }}</h2>
+        <h2 v-else>Ничья!</h2>
+
+        <p>Матч завершён</p>
+        <button
+          class="game-result-overlay__button"
+          @click="emit('back-to-menu')"
+        >
+          В меню сценариев
+        </button>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup>
-import { computed } from 'vue';
-import { useStore } from 'vuex';
-import UnitItem from './UnitItem.vue';
-import BuildingItem from './BuildingItem.vue';
+import { computed } from "vue";
+import { useStore } from "vuex";
+import UnitItem from "./UnitItem.vue";
+import BuildingItem from "./BuildingItem.vue";
 import {
   GRID_STEP,
   MAP_SIZE,
   ISO_ROTATION_DEG,
   ISO_SCALE_Y,
-  Z_INDEX
-} from '@/config/game';
-import TerrainLayer from './terrain/TerrainLayer.vue';
-import BridgeTopLayer from './terrain/BridgeTopLayer.vue';
+  Z_INDEX,
+} from "@/config/game";
+import TerrainLayer from "./terrain/TerrainLayer.vue";
+import BridgeTopLayer from "./terrain/BridgeTopLayer.vue";
 
 const store = useStore();
 const units = computed(() => store.state.map.units);
 const buildings = computed(() => store.state.map.buildings);
 
+const isGameOver = computed(() => store.state.game.isGameOver);
+const winnerGroup = computed(() => store.state.game.winnerGroup);
+const isDraw = computed(() => store.state.game.isDraw);
+
+const emit = defineEmits(["back-to-menu"]);
+
 const waterUnits = computed(() =>
-  units.value.filter((unit) => unit.movementType === 'water')
+  units.value.filter((unit) => unit.movementType === "water"),
 );
 
 const landUnits = computed(() =>
-  units.value.filter((unit) => unit.movementType !== 'water')
+  units.value.filter((unit) => unit.movementType !== "water"),
 );
 
 // Оставшийся маршрут каждого юнита в виде отрезков для отрисовки.
 const unitRoutes = computed(() => {
-  const getPathSegments = store.getters['map/getPathSegments'];
+  const getPathSegments = store.getters["map/getPathSegments"];
 
   return units.value
     .filter((unit) => unit.target || (unit.path && unit.path.length > 0))
@@ -95,16 +105,16 @@ const worldStyle = computed(() => {
       `scale(${camera.zoom}) ` +
       `scale(1, ${ISO_SCALE_Y}) ` +
       `rotate(${ISO_ROTATION_DEG}deg) ` +
-      `translate(${-camera.x}px, ${-camera.y}px)`
+      `translate(${-camera.x}px, ${-camera.y}px)`,
   };
 });
 
 const groundStyle = computed(() => ({
-  left:   `${-MAP_SIZE / 2}px`,
-  top:    `${-MAP_SIZE / 2}px`,
-  width:  `${MAP_SIZE}px`,
+  left: `${-MAP_SIZE / 2}px`,
+  top: `${-MAP_SIZE / 2}px`,
+  width: `${MAP_SIZE}px`,
   height: `${MAP_SIZE}px`,
-  backgroundSize: `${GRID_STEP}px ${GRID_STEP}px`
+  backgroundSize: `${GRID_STEP}px ${GRID_STEP}px`,
 }));
 
 // Призрак здания под курсором в режиме строительства
@@ -113,16 +123,15 @@ const ghost = computed(() => {
   if (!type) return null;
 
   const horizontal =
-    type.type === 'ship' &&
-    store.state.game.buildOrientation === 'horizontal';
+    type.type === "ship" && store.state.game.buildOrientation === "horizontal";
 
   const orientedType = horizontal
     ? { ...type, width: type.height, height: type.width }
     : type;
 
-  return store.getters['map/getGhost'](
-    store.getters['game/getCursorWorld'],
-    orientedType
+  return store.getters["map/getGhost"](
+    store.getters["game/getCursorWorld"],
+    orientedType,
   );
 });
 
@@ -135,7 +144,7 @@ const ghostStyle = computed(() => {
     top: `${g.y - g.height / 2}px`,
     width: `${g.width}px`,
     height: `${g.height}px`,
-    zIndex: Z_INDEX.GHOST
+    zIndex: Z_INDEX.GHOST,
   };
 });
 </script>
@@ -164,9 +173,21 @@ const ghostStyle = computed(() => {
     position: absolute;
     background-color: #557747;
     background-image:
-      radial-gradient(ellipse at 20% 30%, rgba(139, 160, 91, 0.28) 0%, transparent 38%),
-      radial-gradient(ellipse at 75% 65%, rgba(35, 83, 43, 0.25) 0%, transparent 42%),
-      radial-gradient(ellipse at 45% 85%, rgba(173, 157, 94, 0.16) 0%, transparent 35%),
+      radial-gradient(
+        ellipse at 20% 30%,
+        rgba(139, 160, 91, 0.28) 0%,
+        transparent 38%
+      ),
+      radial-gradient(
+        ellipse at 75% 65%,
+        rgba(35, 83, 43, 0.25) 0%,
+        transparent 42%
+      ),
+      radial-gradient(
+        ellipse at 45% 85%,
+        rgba(173, 157, 94, 0.16) 0%,
+        transparent 35%
+      ),
       repeating-radial-gradient(
         circle at 30% 40%,
         rgba(255, 255, 255, 0.025) 0px,
@@ -197,6 +218,51 @@ const ghostStyle = computed(() => {
       background: rgba(230, 90, 90, 0.35);
       border-color: rgba(220, 70, 70, 0.9);
     }
+  }
+}
+.game-result-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.7);
+
+  &__panel {
+    padding: 32px 48px;
+    background: #252525;
+    border: 2px solid #777;
+    border-radius: 12px;
+    color: #fff;
+    text-align: center;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+
+    h2 {
+      margin: 0 0 12px;
+      font-size: 28px;
+    }
+
+    p {
+      margin: 0;
+      color: #bbb;
+      font-size: 16px;
+    }
+  }
+}
+
+.game-result-overlay__button {
+  margin-top: 20px;
+  padding: 10px 18px;
+  background: #315779;
+  border: 1px solid #6b9bc8;
+  border-radius: 7px;
+  color: #fff;
+  font-size: 15px;
+  cursor: pointer;
+
+  &:hover {
+    background: #3d719e;
   }
 }
 </style>

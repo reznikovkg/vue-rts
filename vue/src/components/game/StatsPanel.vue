@@ -11,7 +11,11 @@
       >
         Создать юнита
       </button>
-      <div class="stats-panel__row" v-for="row in buildingRows" :key="row.label">
+      <div
+        class="stats-panel__row"
+        v-for="row in buildingRows"
+        :key="row.label"
+      >
         <span class="stats-panel__label">{{ row.label }}</span>
         <span class="stats-panel__value">{{ row.value }}</span>
       </div>
@@ -19,7 +23,11 @@
 
     <!-- Один юнит: полные характеристики -->
     <div v-else-if="singleUnitRows" class="stats-panel__body">
-      <div class="stats-panel__row" v-for="row in singleUnitRows" :key="row.label">
+      <div
+        class="stats-panel__row"
+        v-for="row in singleUnitRows"
+        :key="row.label"
+      >
         <span class="stats-panel__label">{{ row.label }}</span>
         <span class="stats-panel__value">{{ row.value }}</span>
       </div>
@@ -98,6 +106,13 @@
         </div>
       </div>
     </div>
+    <button
+      v-if="unitCount > 0"
+      class="stats-panel__self-destruct"
+      @click="selfDestruct"
+    >
+      Самоуничтожить выделенных
+    </button>
   </div>
 </template>
 
@@ -134,7 +149,7 @@ const unitCount = computed(() => selectedUnitIds.value.length);
 
 const buildingRows = computed(() =>
   selectedBuilding.value
-    ? store.getters["map/getBuildingStats"](selectedBuilding.value.id) ?? []
+    ? (store.getters["map/getBuildingStats"](selectedBuilding.value.id) ?? [])
     : [],
 );
 
@@ -154,7 +169,9 @@ const squad = computed(() =>
 
 const typeSummary = computed(() =>
   squad.value
-    ? squad.value.types.map((item) => `${item.label} ×${item.count}`).join(" · ")
+    ? squad.value.types
+        .map((item) => `${item.label} ×${item.count}`)
+        .join(" · ")
     : "",
 );
 
@@ -199,7 +216,9 @@ const focusedIndex = computed(() =>
 );
 
 const focusedHpPercent = computed(() =>
-  focusedUnit.value ? percent(focusedUnit.value.hp, focusedUnit.value.maxHp) : 0,
+  focusedUnit.value
+    ? percent(focusedUnit.value.hp, focusedUnit.value.maxHp)
+    : 0,
 );
 
 const focusedMetrics = computed(() => {
@@ -225,6 +244,12 @@ const title = computed(() => {
   if (unitCount.value > 1) return `Выделено юнитов: ${unitCount.value}`;
   return "Юнит";
 });
+
+const selfDestruct = () => {
+  if (selectedUnitIds.value.length === 0) return;
+
+  store.dispatch("map/selfDestructUnits", [...selectedUnitIds.value]);
+};
 </script>
 
 <style scoped lang="scss">
@@ -347,6 +372,27 @@ const title = computed(() => {
   &__focus-index {
     color: #7aa8cc;
     font-weight: 500;
+  }
+
+  &__self-destruct {
+    margin-top: 12px;
+    padding: 8px 14px;
+    border: 1px solid #a94442;
+    border-radius: 6px;
+    background: #7b2929;
+    color: white;
+    font-size: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    pointer-events: auto;
+
+    &:hover {
+      background: #963737;
+    }
+
+    &:active {
+      background: #612020;
+    }
   }
 }
 </style>

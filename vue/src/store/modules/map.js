@@ -10,10 +10,10 @@ import {
   TERRAIN_TYPES,
   groupById,
   MOVEMENT_TYPES,
-} from '@/config/game';
-import { getTerrainAt } from '@/utils/terrain';
-import { buildPath, buildAttackPath, ATTACK_SLOTS } from '@/utils/pathfinding';
-import { useIsoMath } from '@/composables/useIsoMath';
+} from "@/config/game";
+import { getTerrainAt } from "@/utils/terrain";
+import { buildPath, buildAttackPath, ATTACK_SLOTS } from "@/utils/pathfinding";
+import { useIsoMath } from "@/composables/useIsoMath";
 
 const { worldToScreen } = useIsoMath();
 
@@ -35,7 +35,7 @@ const unit = (
   tileY,
   group = "group1",
   movementType = MOVEMENT_TYPES.LAND,
-  unitType = UNIT_TYPES.SWORDSMAN
+  unitType = UNIT_TYPES.SWORDSMAN,
 ) => ({
   id: nextUnitId++,
   position: { x: tileX * GRID_STEP, y: tileY * GRID_STEP },
@@ -265,7 +265,7 @@ const attackSlotsOf = (units, targetId, excludeId) =>
         other.attackTarget &&
         other.attackTarget.id === targetId &&
         other.attackSlot !== null &&
-        other.attackSlot !== undefined
+        other.attackSlot !== undefined,
     )
     .map((other) => other.attackSlot);
 
@@ -316,9 +316,22 @@ export default {
 
   state: () => ({
     units: [
-      ...[[-2, 3], [4, 1], [6, -4]].map(([x, y]) => unit(x, y, "group1")),
-      ...[[-8, -6], [-7, -5], [-9, -5]].map(([x, y]) => unit(x, y, "group2")),
-      ...[[8, 6], [9, 5], [7, 7], [8, 7]].map(([x, y]) => unit(x, y, "group3")),
+      ...[
+        [-2, 3],
+        [4, 1],
+        [6, -4],
+      ].map(([x, y]) => unit(x, y, "group1")),
+      ...[
+        [-8, -6],
+        [-7, -5],
+        [-9, -5],
+      ].map(([x, y]) => unit(x, y, "group2")),
+      ...[
+        [8, 6],
+        [9, 5],
+        [7, 7],
+        [8, 7],
+      ].map(([x, y]) => unit(x, y, "group3")),
     ],
     buildings: [],
   }),
@@ -326,7 +339,10 @@ export default {
   getters: {
     getUnitById: (state) => (id) => state.units.find((u) => u.id === id),
     getBuildings: (state) => state.buildings,
-    getTerrainAt: () => ({ x, y }) => getTerrainAt(x, y),
+    getTerrainAt:
+      () =>
+      ({ x, y }) =>
+        getTerrainAt(x, y),
 
     getStats: (state) => (unitIds) => {
       const units = state.units.filter((u) => unitIds.includes(u.id));
@@ -367,18 +383,18 @@ export default {
 
       const average = (getValue) =>
         Math.round(
-          units.reduce((sum, u) => sum + getValue(u), 0) / units.length
+          units.reduce((sum, u) => sum + getValue(u), 0) / units.length,
         );
 
       return {
         count: units.length,
         types: groupUnits(
           (u) => u.type,
-          (u) => u.label
+          (u) => u.label,
         ),
         groups: groupUnits(
           (u) => u.group,
-          (u) => groupById(u.group).label
+          (u) => groupById(u.group).label,
         ),
         totalHp: units.reduce((sum, u) => sum + u.hp, 0),
         totalMaxHp: units.reduce((sum, u) => sum + u.maxHp, 0),
@@ -589,7 +605,7 @@ export default {
     REMOVE_DESTROYED: (state) => {
       const aliveUnits = state.units.filter((unit) => unit.hp > 0);
       const aliveBuildings = state.buildings.filter(
-        (building) => building.hp > 0
+        (building) => building.hp > 0,
       );
 
       if (aliveUnits.length !== state.units.length) {
@@ -599,6 +615,16 @@ export default {
       if (aliveBuildings.length !== state.buildings.length) {
         state.buildings = aliveBuildings;
       }
+    },
+
+    SELF_DESTRUCT: (state, unitIds) => {
+      const ids = new Set(unitIds);
+
+      state.units.forEach((unit) => {
+        if (ids.has(unit.id)) {
+          unit.hp = 0;
+        }
+      });
     },
 
     SET_TARGET: (state, { id, target }) => {
@@ -628,7 +654,7 @@ export default {
         t,
         state.buildings,
         UNIT_RADIUS,
-        u.movementType
+        u.movementType,
       );
       u.pathIndex = 0;
     },
@@ -654,7 +680,7 @@ export default {
           nextTarget,
           state.buildings,
           UNIT_RADIUS,
-          u.movementType
+          u.movementType,
         );
         u.pathIndex = 0;
       }
@@ -680,7 +706,7 @@ export default {
 
     ADD_BUILDING: (
       state,
-      { type, size, width, height, position, group = "group1" }
+      { type, size, width, height, position, group = "group1" },
     ) => {
       const definition = buildingType(type);
       if (!definition) return;
@@ -707,7 +733,7 @@ export default {
         group,
         movementType = MOVEMENT_TYPES.LAND,
         unitType = UNIT_TYPES.SWORDSMAN,
-      }
+      },
     ) => {
       const newUnit = unit(0, 0, group, movementType, unitType);
       newUnit.position = position;
@@ -737,8 +763,18 @@ export default {
       });
     },
 
-    loadScenario: ({ commit }, scenario) => {
+    loadScenario: ({ commit, dispatch }, scenario) => {
       if (!scenario) return;
+
+      commit(
+        "game/SET_GAME_RESULT",
+        {
+          isGameOver: false,
+          winnerGroup: null,
+          isDraw: false,
+        },
+        { root: true },
+      );
 
       commit("CLEAR_MAP");
 
@@ -778,9 +814,11 @@ export default {
           position,
         });
       });
+      dispatch("checkGameResult");
     },
 
-    moveUnits: ({ state, commit }, dt) => {
+    moveUnits: ({ state, commit, rootState, dispatch }, dt) => {
+      if (rootState.game.isGameOver) return;
       const R = UNIT_RADIUS;
       const B = state.buildings;
 
@@ -792,7 +830,7 @@ export default {
         }
 
         return state.buildings.find(
-          (target) => target.id === u.attackTarget.id
+          (target) => target.id === u.attackTarget.id,
         );
       };
 
@@ -818,21 +856,21 @@ export default {
           const targetWidth =
             u.attackTarget.type === "unit"
               ? UNIT_RADIUS * 2
-              : target.width ?? target.size;
+              : (target.width ?? target.size);
 
           const targetHeight =
             u.attackTarget.type === "unit"
               ? UNIT_RADIUS * 2
-              : target.height ?? target.size;
+              : (target.height ?? target.size);
 
           const dx = Math.max(
             Math.abs(u.position.x - target.position.x) - targetWidth / 2,
-            0
+            0,
           );
 
           const dy = Math.max(
             Math.abs(u.position.y - target.position.y) - targetHeight / 2,
-            0
+            0,
           );
 
           const distance = Math.hypot(dx, dy);
@@ -863,7 +901,8 @@ export default {
           // Путь к цели атаки: каждый юнит занимает свою сторону цели
           if (needsPath && u.repathTimer <= 0) {
             const attackers = state.units.filter(
-              (other) => other.attackTarget && other.attackTarget.id === target.id
+              (other) =>
+                other.attackTarget && other.attackTarget.id === target.id,
             ).length;
 
             const { path, slot } = buildAttackPath(
@@ -875,7 +914,7 @@ export default {
               {
                 slots: Math.max(ATTACK_SLOTS, attackers),
                 occupied: attackSlotsOf(state.units, target.id, u.id),
-              }
+              },
             );
 
             u.path = path;
@@ -934,7 +973,7 @@ export default {
               nextTarget,
               state.buildings,
               UNIT_RADIUS,
-              u.movementType
+              u.movementType,
             );
 
             u.pathIndex = 0;
@@ -946,6 +985,10 @@ export default {
       });
 
       commit("REMOVE_DESTROYED");
+
+      dispatch("checkGameResult");
+
+      if (rootState.game.isGameOver) return;
 
       // Юниты не должны слипаться в одну точку — расталкиваем пересекающиеся пары
       separateUnits(state.units, state.buildings);
@@ -970,6 +1013,48 @@ export default {
         position,
         group: building.group,
       });
+    },
+
+    selfDestructUnits: ({ state, commit, dispatch, rootState }, unitIds) => {
+      if (rootState.game.isGameOver) return;
+      if (!Array.isArray(unitIds) || unitIds.length === 0) return;
+
+      const existingIds = unitIds.filter((id) =>
+        state.units.some((unit) => unit.id === id),
+      );
+
+      if (existingIds.length === 0) return;
+
+      commit("SELF_DESTRUCT", existingIds);
+      commit("REMOVE_DESTROYED");
+
+      // Сбрасываем выделение после удаления юнитов
+      commit("game/SET_SELECTED", [], { root: true });
+
+      dispatch("checkGameResult");
+    },
+
+    checkGameResult: ({ state, rootState, commit }) => {
+      if (rootState.game.isGameOver) return;
+
+      const aliveGroups = new Set([
+        ...state.units.map((unit) => unit.group),
+        ...state.buildings.map((building) => building.group),
+      ]);
+
+      if (aliveGroups.size <= 1) {
+        const winnerGroup = aliveGroups.size === 1 ? [...aliveGroups][0] : null;
+
+        commit(
+          "game/SET_GAME_RESULT",
+          {
+            isGameOver: true,
+            winnerGroup,
+            isDraw: aliveGroups.size === 0,
+          },
+          { root: true },
+        );
+      }
     },
   },
 };
