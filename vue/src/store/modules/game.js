@@ -59,6 +59,10 @@ export default {
     frame: { dt: 0, time: 0 },
     // Статус паузы
     isPaused: false,
+    // Состояние игры
+    isGameOver: false,
+    winnerGroup: null,
+    isDraw: false,
   }),
   getters: {
     isUnitSelected: (state) => (id) => state.selectedUnitIds.includes(id),
@@ -198,6 +202,10 @@ export default {
         dragged: false,
       };
 
+      state.isGameOver = false;
+      state.winnerGroup = null;
+      state.isDraw = false;
+
       Object.keys(state.keys).forEach((key) => {
         state.keys[key] = false;
       });
@@ -212,6 +220,15 @@ export default {
       };
 
       state.isPaused = false;
+    },
+
+    SET_GAME_RESULT: (
+      state,
+      { isGameOver, winnerGroup = null, isDraw = false },
+    ) => {
+      state.isGameOver = isGameOver;
+      state.winnerGroup = winnerGroup;
+      state.isDraw = isDraw;
     },
   },
   actions: {
