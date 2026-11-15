@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="350" height="100" viewBox="0 0 350 100">
+  <!-- настил моста через реку, текущую по y: доски лежат поперёк прохода (вдоль оси y) -->
+  <!-- опорные брёвна и тени стыков -->
+  <rect width="350" height="100" fill="#7c4a1e"/>
+  <!-- доски настила -->
+  <g>
+    <rect x="2" y="8" width="21" height="84" fill="#a16207"/>
+    <rect x="27" y="8" width="21" height="84" fill="#92400e"/>
+    <rect x="52" y="8" width="21" height="84" fill="#a16207"/>
+    <rect x="77" y="8" width="21" height="84" fill="#92400e"/>
+    <rect x="102" y="8" width="21" height="84" fill="#a16207"/>
+    <rect x="127" y="8" width="21" height="84" fill="#92400e"/>
+    <rect x="152" y="8" width="21" height="84" fill="#a16207"/>
+    <rect x="177" y="8" width="21" height="84" fill="#92400e"/>
+    <rect x="202" y="8" width="21" height="84" fill="#a16207"/>
+    <rect x="227" y="8" width="21" height="84" fill="#92400e"/>
+    <rect x="252" y="8" width="21" height="84" fill="#a16207"/>
+    <rect x="277" y="8" width="21" height="84" fill="#92400e"/>
+    <rect x="302" y="8" width="21" height="84" fill="#a16207"/>
+    <rect x="327" y="8" width="21" height="84" fill="#92400e"/>
+  </g>
+  <!-- перила вдоль краёв -->
+  <rect y="0" width="350" height="8" fill="#78350f"/>
+  <rect y="92" width="350" height="8" fill="#78350f"/>
+</svg>

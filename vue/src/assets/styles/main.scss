@@ -1,0 +1,9 @@
+// Глобальные стили приложения, подключаются в main.js
+@use 'base';
+
+// Стартовая страница: контент по центру окна.
+#project {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+}

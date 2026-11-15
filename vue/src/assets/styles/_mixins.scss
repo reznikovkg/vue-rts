@@ -1,0 +1,92 @@
+// Подключение в компоненте: @use '@/assets/styles/mixins' as *;
+// Переменные приходят вместе с миксинами, отдельно их подключать не нужно.
+
+@forward 'variables';
+@use 'variables' as *;
+
+// Плоская деталь, положенная на ромбовидную карту
+@mixin iso-flat {
+  transform: $iso-transform;
+}
+
+// Свойство детали при состоянии блока: класс-модификатор висит на корне блока,
+// а деталь - его прямой потомок (части зданий рендерятся без обёрток).
+// Пример: @include when-state('game-static-object', 'constructing', opacity, $ghost-opacity)
+@mixin when-state($block, $state, $property, $value) {
+  .#{$block}--#{$state} > & {
+    #{$property}: $value;
+  }
+}
+
+// Цвет детали у выделенного объекта.
+// Пример: @include when-selected('game-unit', border-color)
+@mixin when-selected($block, $property, $value: $selected-color) {
+  @include when-state($block, 'selected', $property, $value);
+}
+
+// Чёрная обводка детали, которая становится белой при выделении
+@mixin outlined($block, $radius: null) {
+  border: $outline-width solid $outline-color;
+  border-radius: $radius;
+
+  @include when-selected($block, border-color);
+}
+
+// Грань объёмного объекта (стена, зубец): позиция и обводка с выделением
+@mixin face($block) {
+  position: absolute;
+
+  @include outlined($block);
+}
+
+// Стена: скос изометрии и затемнение; дальняя стена темнее
+@mixin wall($dark: false) {
+  transform-origin: 0 0;
+
+  @if $dark {
+    background-image: linear-gradient($wall-shade-dark, $wall-shade-dark);
+  } @else {
+    background-image: linear-gradient($wall-shade, $wall-shade);
+  }
+}
+
+// Часть юнита (рука, нога)
+@mixin limb($block, $height) {
+  position: absolute;
+  width: 4px;
+  height: $height;
+  border-radius: 2px;
+  background: $outline-color;
+  transform-origin: top center;
+
+  @include when-selected($block, background);
+}
+
+// Линия без заливки (путь юнита, линия атаки, ребро крыши)
+@mixin line($style: solid, $color: $outline-color) {
+  position: absolute;
+  height: 0;
+  margin-top: -1px;
+  border-top: $outline-width $style $color;
+}
+
+// Оболочка полоски над объектом (жизни, производство, стройка)
+@mixin status-bar {
+  position: absolute;
+  left: 50%;
+  height: 6px;
+  border: $outline-width solid $outline-color;
+  background: $hp-bar-background;
+  transform: translateX(-50%);
+}
+
+// Метка точки на карте: вытянутый овал (цель приказа, кольцо атаки)
+@mixin target-mark($color) {
+  position: absolute;
+  width: 16px;
+  height: 8px;
+  margin: -4px 0 0 -8px;
+  border: $outline-width solid $color;
+  border-radius: 50%;
+  pointer-events: none;
+}

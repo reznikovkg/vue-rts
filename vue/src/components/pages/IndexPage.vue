@@ -1,9 +1,8 @@
+<!-- Главная страница -->
 <template>
-  Index
-
   <div>
-    <RouterLink :to="{ name: $routes.EXAMPLE }">
-     To Example
+    <RouterLink class="start-button" :to="{ name: $routes.GAME }">
+     Начать игру!
     </RouterLink>
   </div>
 </template>
@@ -12,6 +11,20 @@
 
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+@use '@/assets/styles/mixins' as *;
 
+.start-button {
+  font-size: 36px;
+  color: $accent;
+  text-decoration: none;
+  transition: 0.4s;
+  padding: 3px;
+
+  @media (hover: hover) {
+    &:hover {
+      background-color: $accent-hover;
+    }
+  }
+}
 </style>
