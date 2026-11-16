@@ -1,5 +1,9 @@
 import { createStore } from 'vuex'
 import list from './list'
+import camera from './camera'
+import units from './units'
+import events from './events'
+import game from './game'
 
 const MUTATIONS = {
   INCREMENT: 'INCREMENT',
@@ -37,6 +41,10 @@ export default createStore({
     },
   },
   modules: {
-    list
+    list,
+    camera,
+    units,
+    events,
+    game,
   }
 })
