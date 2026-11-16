@@ -9,7 +9,7 @@
     @mouseup="($event) => onMouseUp($event)"
     @mouseleave="() => onMouseUp()"
   >
-    <GameWorld />
+    <GameWorld @back-to-menu="openScenarioMenu" />
 
     <!-- Хпбары: отдельный слой в экранных координатах, вне изометрии мира.
          Видны только у объектов в фокусе — выделенных юнитов и выбранного здания -->
@@ -185,7 +185,11 @@ const togglePause = () => {
 };
 
 const openScenarioMenu = () => {
+  store.dispatch("events/clearEvents");
+  store.dispatch("game/resetForScenario");
+
   store.dispatch("game/setPaused", true);
+
   showScenarioMenu.value = true;
   showPauseMenu.value = false;
 };
