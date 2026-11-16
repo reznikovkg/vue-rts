@@ -199,35 +199,6 @@
         opacity="0.22"
       />
     </g>
-
-    <!-- Нижняя часть моста: тень и основание -->
-    <g class="terrain-layer__bridge">
-      <!-- Переходы к берегам -->
-      <path
-        d="M 542 550 L 558 550 M 787 548 L 803 548"
-        stroke="#77766d"
-        stroke-width="40"
-        stroke-linecap="butt"
-        opacity="0.8"
-      />
-
-      <!-- Мягкая тень -->
-      <path
-        d="M 550 550 L 795 548"
-        stroke="#172d36"
-        stroke-width="52"
-        stroke-linecap="butt"
-        opacity="0.35"
-      />
-
-      <!-- Каменное основание -->
-      <path
-        d="M 550 550 L 795 548"
-        stroke="#77766d"
-        stroke-width="46"
-        stroke-linecap="butt"
-      />
-    </g>
   </svg>
 </template>
 

@@ -15,32 +15,6 @@ export const ATTACK_SLOTS = 8;
 // Минимальный шаг между точками вокруг цели, чтобы юниты не встали друг на друга
 const ATTACK_MIN_GAP = UNIT_RADIUS * 2 + 6;
 
-// Координаты моста в мировых координатах
-const BRIDGE_START = { x: -170, y: -170 };
-const BRIDGE_END = { x: 75, y: -172 };
-const BRIDGE_WIDTH = 23;
-
-// Проверяем, находится ли точка на мосту
-const isBridgeAt = (x, y) => {
-  const dx = BRIDGE_END.x - BRIDGE_START.x;
-  const dy = BRIDGE_END.y - BRIDGE_START.y;
-
-  const lengthSquared = dx * dx + dy * dy;
-
-  const t = Math.max(
-    0,
-    Math.min(
-      1,
-      ((x - BRIDGE_START.x) * dx + (y - BRIDGE_START.y) * dy) / lengthSquared
-    )
-  );
-
-  const closestX = BRIDGE_START.x + t * dx;
-  const closestY = BRIDGE_START.y + t * dy;
-
-  return Math.hypot(x - closestX, y - closestY) <= BRIDGE_WIDTH;
-};
-
 // Проверяем доступность местности для конкретного юнита
 const canMoveOnTerrain = (x, y, movementType) => {
   const terrain = getTerrainAt(x, y);
@@ -49,7 +23,7 @@ const canMoveOnTerrain = (x, y, movementType) => {
     return terrain === TERRAIN_TYPES.WATER;
   }
 
-  return terrain === TERRAIN_TYPES.LAND || isBridgeAt(x, y);
+  return terrain === TERRAIN_TYPES.LAND;
 };
 
 const cellBlocked = (cx, cy, buildings, movementType) => {

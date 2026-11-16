@@ -25,13 +25,11 @@
     <!-- Здания -->
     <BuildingItem v-for="b in buildings" :key="b.id" :building="b" />
 
-    <!-- Водные юниты: под мостом -->
+    <!-- Водные юниты -->
     <UnitItem v-for="unit in waterUnits" :key="unit.id" :unit="unit" />
 
-    <!-- Верхняя часть моста -->
-    <BridgeTopLayer />
 
-    <!-- Наземные юниты: поверх моста -->
+    <!-- Наземные юниты -->
     <UnitItem v-for="unit in landUnits" :key="unit.id" :unit="unit" />
   </div>
   <Teleport to="body">
@@ -65,7 +63,6 @@ import {
   Z_INDEX,
 } from "@/config/game";
 import TerrainLayer from "./terrain/TerrainLayer.vue";
-import BridgeTopLayer from "./terrain/BridgeTopLayer.vue";
 
 const store = useStore();
 const units = computed(() => store.state.map.units);

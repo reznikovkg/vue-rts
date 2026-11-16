@@ -1,4 +1,3 @@
-
 import {
   MAP_TILES,
   GRID_STEP,

@@ -106,29 +106,6 @@ const aabb = (b) => {
   };
 };
 
-const BRIDGE_START = { x: -178, y: -170 };
-const BRIDGE_END = { x: 83, y: -172 };
-const BRIDGE_WIDTH = 23;
-
-const isBridgeAt = (x, y) => {
-  const dx = BRIDGE_END.x - BRIDGE_START.x;
-  const dy = BRIDGE_END.y - BRIDGE_START.y;
-
-  const t = Math.max(
-    0,
-    Math.min(
-      1,
-      ((x - BRIDGE_START.x) * dx + (y - BRIDGE_START.y) * dy) /
-        (dx * dx + dy * dy),
-    ),
-  );
-
-  const nearestX = BRIDGE_START.x + t * dx;
-  const nearestY = BRIDGE_START.y + t * dy;
-
-  return Math.hypot(x - nearestX, y - nearestY) <= BRIDGE_WIDTH;
-};
-
 const collidesWithBuildings = (x, y, r, buildings) => {
   return buildings.some((b) => {
     const a = aabb(b);
@@ -197,7 +174,7 @@ const canUnitStandAt = (x, y, movementType) => {
     return terrain === TERRAIN_TYPES.WATER;
   }
 
-  return terrain === TERRAIN_TYPES.LAND || isBridgeAt(x, y);
+  return terrain === TERRAIN_TYPES.LAND;
 };
 
 // Аккуратно сдвигаем юнита, не заталкивая его в постройку, за границу карты
@@ -451,7 +428,7 @@ export default {
 
           const terrain = getTerrainAt(x, y);
 
-          if (terrain !== type.terrain || isBridgeAt(x, y)) {
+          if (terrain !== type.terrain) {
             return false;
           }
         }
@@ -793,23 +770,30 @@ export default {
       });
 
       // Создаём здания с новыми ID.
-      scenario.buildings.forEach(({ type, x, y, group }) => {
+      scenario.buildings.forEach(({ type, x, y, group, orientation }) => {
         const definition = buildingType(type);
         if (!definition) return;
-
+        const orientedDefinition =
+          type === "ship" && orientation === "horizontal"
+            ? {
+                ...definition,
+                width: definition.height,
+                height: definition.width,
+              }
+            : definition;
         const position = snapToGrid(
           {
             x: x * GRID_STEP,
             y: y * GRID_STEP,
           },
-          definition,
+          orientedDefinition,
         );
 
         commit("ADD_BUILDING", {
           type,
           size: definition.size,
-          width: definition.width,
-          height: definition.height,
+          width: orientedDefinition.width,
+          height: orientedDefinition.height,
           group,
           position,
         });
