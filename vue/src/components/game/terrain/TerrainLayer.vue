@@ -90,13 +90,13 @@
       </filter>
 
       <!-- Ограничиваем эффекты границами реки -->
-      <clipPath id="water-clip">
-        <path
-          v-for="(area, index) in TERRAIN_AREAS"
-          :key="`water-clip-${index}`"
-          :d="terrainPath(area.points)"
-        />
-      </clipPath>
+    <clipPath id="water-clip">
+      <path
+        v-for="(path, index) in waterPaths"
+        :key="`water-clip-${index}`"
+        :d="path"
+      />
+    </clipPath>
     </defs>
 
     <!-- Тёмные участки открытой почвы -->
@@ -128,9 +128,9 @@
 
     <!-- Широкий внешний переход в землю -->
     <path
-      v-for="(area, index) in TERRAIN_AREAS"
+      v-for="(path, index) in waterPaths"
       :key="`sand-outer-${index}`"
-      :d="terrainPath(area.points)"
+      :d="path"
       fill="none"
       stroke="#756b49"
       stroke-width="90"
@@ -142,9 +142,9 @@
 
     <!-- Средний слой песка -->
     <path
-      v-for="(area, index) in TERRAIN_AREAS"
+      v-for="(path, index) in waterPaths"
       :key="`sand-middle-${index}`"
-      :d="terrainPath(area.points)"
+      :d="path"
       fill="none"
       stroke="#a18e65"
       stroke-width="62"
@@ -156,9 +156,9 @@
 
     <!-- Светлый песок непосредственно у воды -->
     <path
-      v-for="(area, index) in TERRAIN_AREAS"
+      v-for="(path, index) in waterPaths"
       :key="`sand-inner-${index}`"
-      :d="terrainPath(area.points)"
+      :d="path"
       fill="none"
       stroke="#bba77c"
       stroke-width="34"
@@ -170,11 +170,11 @@
 
     <!-- Вода -->
     <path
-      v-for="(area, index) in TERRAIN_AREAS"
+      v-for="(path, index) in waterPaths"
       :key="`water-${index}`"
       class="terrain-layer__water"
-      :d="terrainPath(area.points)"
-      :fill="TERRAIN_COLORS[area.type]"
+      :d="path"
+      :fill="TERRAIN_COLORS.water"
     />
 
     <!-- Глубина и неоднородность воды -->
@@ -199,40 +199,12 @@
         opacity="0.22"
       />
     </g>
-
-    <!-- Нижняя часть моста: тень и основание -->
-    <g class="terrain-layer__bridge">
-      <!-- Переходы к берегам -->
-      <path
-        d="M 542 550 L 558 550 M 787 548 L 803 548"
-        stroke="#77766d"
-        stroke-width="40"
-        stroke-linecap="butt"
-        opacity="0.8"
-      />
-
-      <!-- Мягкая тень -->
-      <path
-        d="M 550 550 L 795 548"
-        stroke="#172d36"
-        stroke-width="52"
-        stroke-linecap="butt"
-        opacity="0.35"
-      />
-
-      <!-- Каменное основание -->
-      <path
-        d="M 550 550 L 795 548"
-        stroke="#77766d"
-        stroke-width="46"
-        stroke-linecap="butt"
-      />
-    </g>
   </svg>
 </template>
 
 <script setup>
-import { MAP_SIZE, TERRAIN_AREAS, TERRAIN_COLORS } from '@/config/game';
+import { MAP_SIZE, TERRAIN_COLORS } from '@/config/game';
+import { getWaterContours } from '@/utils/terrainGrid';
 import BushLayer from './BushLayer.vue';
 
 const terrainPath = (points) => {
@@ -276,7 +248,11 @@ const terrainPath = (points) => {
   return path + ' Z';
 };
 
-const waterPaths = TERRAIN_AREAS.map((area) => terrainPath(area.points));
+const waterContours = getWaterContours();
+
+const waterPaths = waterContours.map((contour) =>
+  terrainPath(contour)
+);
 </script>
 
 <style scoped lang="scss">
