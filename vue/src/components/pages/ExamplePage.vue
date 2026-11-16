@@ -3,8 +3,8 @@
   <RouterLink :to="{ name: $routes.INDEX }" >To Index</RouterLink>
   <input v-model="value" type="number">
   <input v-model="timeout" type="number">
-  <button @click="() => inc()">+</button>
-  <button @click="() => setValue()">SET</button>
+  <button @click="inc">+</button>
+  <button @click="setValue">SET</button>
 
   <div>
     <div v-for="i in list" :key="i">{{ i }}</div>

@@ -6,7 +6,7 @@ import store from './store'
 import { router, ROUTES } from '@/router/index.js'
 
 const routes = {
-  install(app, options) {
+  install: (app, options) => {
     console.log(ROUTES)
     app.config.globalProperties.$routes = ROUTES
   }

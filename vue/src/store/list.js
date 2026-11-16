@@ -1,6 +1,6 @@
 export default {
   namespaced: true,
-  state () {
+  state: () => {
     return {
       list: [1, 2, 3]
     }

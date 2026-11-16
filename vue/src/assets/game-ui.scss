@@ -1,0 +1,50 @@
+// общий вид игровых панелей: холодный сине-серый камень, серебряная рамка, лунный свет
+// подключается в компонентах: @use '@/assets/game-ui' as ui;
+
+$text: #e3e9ee;
+$muted: #97a5b0;
+$silver: #c9d6e0;
+$border: #4f5e69;
+$accent: #7fd1c1;
+$danger: #c8584f;
+
+@mixin panel {
+  border: 2px solid $border;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #232c33 0%, #161c21 100%);
+  box-shadow:
+    inset 0 0 0 1px #0b0f12,
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 6px 22px rgba(0, 0, 0, 0.55);
+  color: $text;
+  font-size: 12px;
+}
+
+@mixin title {
+  color: $silver;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 0 #000;
+}
+
+@mixin button {
+  padding: 4px 7px;
+  border: 1px solid #5d6d79;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #34414b 0%, #232d35 100%);
+  color: $text;
+  font: inherit;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: linear-gradient(180deg, #415160 0%, #2c3843 100%);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+}
